@@ -28,13 +28,14 @@ class Item extends Model
     /** @return BelongsToMany<Package, $this, Pivot> */
     public function packages(): BelongsToMany
     {
-        return $this->belongsToMany(Package::class)->withTimestamps();
+        return $this->belongsToMany(Package::class, 'package_item')->withTimestamps();
     }
 
-    /** @return BelongsToMany<Deal, $this, Pivot> */
+    /** @return BelongsToMany<Deal, $this, DealItem> */
     public function deals(): BelongsToMany
     {
-        return $this->belongsToMany(Deal::class)
+        return $this->belongsToMany(Deal::class, 'deal_items')
+            ->using(DealItem::class)
             ->withPivot(['is_addon', 'custom_price'])
             ->withTimestamps();
     }

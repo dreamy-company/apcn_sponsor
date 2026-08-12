@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Carbon;
 
 /**
@@ -51,10 +50,11 @@ class Deal extends Model
         return $this->belongsTo(Package::class);
     }
 
-    /** @return BelongsToMany<Item, $this, Pivot> */
+    /** @return BelongsToMany<Item, $this, DealItem> */
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(Item::class, 'deal_items')
+            ->using(DealItem::class)
             ->withPivot(['is_addon', 'custom_price'])
             ->withTimestamps();
     }

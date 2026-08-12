@@ -27,7 +27,7 @@ class Package extends Model
     /** @return BelongsToMany<Item, $this, Pivot> */
     public function items(): BelongsToMany
     {
-        return $this->belongsToMany(Item::class)->withTimestamps();
+        return $this->belongsToMany(Item::class, 'package_item')->withTimestamps();
     }
 
     /** @return HasMany<Deal, $this> */
