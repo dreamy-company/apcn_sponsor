@@ -154,7 +154,8 @@ Stack (actual, from source code — newer than PRD recommendation):
 - PHP 8.3 / Laravel 13 (PRD said 11 — report, follow source)
 - Livewire 4 (PRD said 3 — report, follow source) + Flux 2 + Tailwind
 - Fortify (auth) + Passkeys + 2FA
-- SQLite locally (tests run on in-memory SQLite); PRD targets PostgreSQL/MySQL in production
+- **MySQL 8.0.30 via Laragon** (no Docker) — the app's real database; `.env` uses `DB_CONNECTION=mysql`
+- Tests: in-memory SQLite by default (`php artisan test`); target-DB verification via `php artisan test --configuration=phpunit.mysql.xml` (requires `apcn_sponsor_test` database)
 
 ---
 

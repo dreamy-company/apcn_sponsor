@@ -60,14 +60,16 @@ Internal web application. Authentication is handled by **Laravel Fortify** (emai
 
 ### 2.3 Operating Environment
 
-| Aspect | Dev (current) | Target (production, per PRD) |
+| Aspect | Dev (current) | Production target |
 |---|---|---|
-| Backend | Laravel 13.x, PHP 8.3 | Laravel (PRD named 11; actual stack is 13) |
-| Frontend | Livewire 4 + Flux 2 + Tailwind | Same (PRD named Livewire 3; actual is 4) |
-| Database | SQLite (local), SQLite in-memory (tests) | PostgreSQL or MySQL |
-| Server | `php artisan serve` / Laravel Herd | Nginx + Docker |
+| Backend | Laravel 13.x, PHP 8.3 | Laravel 13.x, PHP 8.3 |
+| Frontend | Livewire 4 + Flux 2 + Tailwind | Same |
+| Database | **MySQL 8.0.30** (via Laragon) | MySQL 8.x |
+| Web server | Laragon (Apache/Nginx) or `php artisan serve` | Laragon/Nginx |
+| Containerization | None — user runs MySQL + PHP directly (no Docker) | None |
+| Tests | In-memory SQLite (default, fast) **and** MySQL via `phpunit.mysql.xml` (target-DB verification) | Both |
 
-> **Note on deviations from PRD v1.0:** the PRD recommended Laravel 11 + Livewire 3. The project was scaffolded on the current starter kit, so the actual stack is **Laravel 13 + Livewire 4 + Flux 2 + Fortify**. All requirements remain valid on this stack.
+> **Deviations from PRD v1.0:** (1) the PRD recommended Laravel 11 + Livewire 3 — the actual stack is **Laravel 13 + Livewire 4 + Flux 2 + Fortify**; (2) the PRD recommended Docker + Nginx + PostgreSQL/MySQL — the project runs on **MySQL 8 via Laragon without Docker** (user's environment). All requirements remain valid.
 
 ### 2.4 Design & Implementation Constraints
 
@@ -274,7 +276,7 @@ Traceability to the PRD's checklist, with current status:
 1. ~~Dashboard aggregate stats~~ — **done** (FR-26): `DashboardService` + `Dashboard` component, role-scoped, covered by `DashboardStatsTest`.
 2. **Database seeding** for the sponsor catalog (Diamond/Platinum/White Gold tiers) — **done** (`SponsorCatalogSeeder`), incl. demo users `j4u@apcn2027.local` / `doctor@apcn2027.local` and one finalized example deal.
 3. **Edit-after-finalize policy** is intentionally restricted (BR-05); reopening finalized deals is a future decision.
-4. Production DB target is PostgreSQL/MySQL per PRD; currently developed/tested on SQLite — decimal/date semantics should be re-verified on the target DB.
+4. ~~Production DB target verification~~ — **done**: migrations, seed, and the full test suite verified on **MySQL 8.0.30** (`phpunit.mysql.xml`). No Docker: app runs via Laragon directly.
 
 ---
 

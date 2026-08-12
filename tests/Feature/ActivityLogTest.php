@@ -45,12 +45,8 @@ class ActivityLogTest extends TestCase
             ->first();
 
         $this->assertNotNull($log);
-        $this->assertSame([
-            'status' => [
-                'old' => DealStatus::Draft->value,
-                'new' => DealStatus::Finalized->value,
-            ],
-        ], $log->details);
+        $this->assertSame('draft', $log->details['status']['old']);
+        $this->assertSame('finalized', $log->details['status']['new']);
     }
 
     public function test_updating_a_payment_term_is_logged(): void

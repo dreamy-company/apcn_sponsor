@@ -28,7 +28,7 @@ Every row in the inventory table is an **SRS requirement** (FR-xx). Work is orga
 | FR-23…FR-25 | Deal list + final summary (search, filter, progress, role-scoped) | 4 | ✅ | `DealList`, `DealShow` |
 | FR-26 | **Dashboard aggregate stats** | 4 | ✅ | `DashboardService`, `Dashboard` (Livewire) |
 | — | **Seed & demo data** (catalog tiers + demo users) | all | ✅ | `SponsorCatalogSeeder`, `DatabaseSeeder` |
-| — | **Production hardening** (PostgreSQL/MySQL, Docker, Nginx) | infra | ⬜ | → WS-D |
+| — | **Production hardening** (MySQL via Laragon, no Docker) | infra | 🚧 | → WS-D |
 | — | Stretch: reopen finalized deals, material uploads, notifications | 3/4 | ⬜ | → WS-E |
 
 ---
@@ -82,11 +82,11 @@ Make the app usable for a demo / first sign-in.
 
 ### WS-D — Production Hardening
 
-| # | Task | Files | Deps |
-|---|---|---|---|
-| D1 | **Target-DB verification** — run migrations + tests against PostgreSQL (and/or MySQL) in a Docker container; fix dialect quirks (decimal casts, `enum` vs `string` columns) | `docker-compose.yml`, CI workflow in `.github/` | — |
-| D2 | **Docker + Nginx** — Laravel container, Nginx serving `public/`, queues/scheduler if needed | Dockerfile, `docker/` | D1 |
-| D3 | **Env hardening** — `APP_DEBUG=false`, session/queue drivers, rate limiting on auth, `.env.example` sync | `.env.example`, config | D2 |
+| # | Task | Files | Deps | Status |
+|---|---|---|---|---|
+| D1 | **Target-DB verification** — migrations, seed, and full test suite run against **MySQL 8.0.30 (Laragon)**; dialect checks (decimal casts, JSON key order, booleans) pass | `phpunit.mysql.xml`, `database/migrations/` | — | ✅ |
+| D2 | **Local serving (Laragon)** — app served via Laragon (no Docker); PHP 8.3 + MySQL 8.0.30; `php artisan serve` as fallback | Laragon config, `.env` | D1 | ✅ |
+| D3 | **Env hardening** — `APP_DEBUG=false` in production, session/queue drivers, `.env.example` sync (MySQL values documented) | `.env.example`, config | D2 | 🚧 |
 
 **DoD (WS-D):** `docker compose up` runs the app on the target DB; full suite green on PostgreSQL; deployment runbook documented.
 
