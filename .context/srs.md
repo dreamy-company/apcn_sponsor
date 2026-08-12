@@ -132,7 +132,7 @@ Requirements are tagged **FR-<n>**. Priority: **M** (must), **S** (should), **C*
 | FR-23 | M | Done | A deal list page (`DealList`) shall list deals with search (sponsor name) and status filter. J4U sees all deals; doctors see only their own. |
 | FR-24 | M | Done | A deal summary page (`DealShow`) shall show: status, final price, payment progress (paid/total), material progress (received/total), deal details (company, PIC, doctor), item composition, payment terms, material checklist, and the activity log timeline. |
 | FR-25 | M | Done | J4U shall be able to finalize a draft deal from the summary page and to mark payments/materials received there. |
-| FR-26 | S | Planned | Dashboard with aggregate statistics (total committed value, by tier, payment status). |
+| FR-26 | S | Done | Dashboard with aggregate statistics (total committed value, deals by status, payment progress, material progress). `DashboardService` computes role-scoped figures; `Dashboard` Livewire component renders stat cards + recent deals. |
 
 ---
 
@@ -271,7 +271,7 @@ Traceability to the PRD's checklist, with current status:
 
 ## 11. Open Items / Known Gaps
 
-1. **Dashboard aggregate stats** planned (FR-26).
+1. ~~Dashboard aggregate stats~~ — **done** (FR-26): `DashboardService` + `Dashboard` component, role-scoped, covered by `DashboardStatsTest`.
 2. **Database seeding** for the sponsor catalog (Diamond/Platinum/White Gold tiers) — **done** (`SponsorCatalogSeeder`), incl. demo users `j4u@apcn2027.local` / `doctor@apcn2027.local` and one finalized example deal.
 3. **Edit-after-finalize policy** is intentionally restricted (BR-05); reopening finalized deals is a future decision.
 4. Production DB target is PostgreSQL/MySQL per PRD; currently developed/tested on SQLite — decimal/date semantics should be re-verified on the target DB.

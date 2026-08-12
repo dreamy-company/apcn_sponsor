@@ -26,7 +26,7 @@ Every row in the inventory table is an **SRS requirement** (FR-xx). Work is orga
 | FR-10…FR-18 | Deal creation & customization (initiation, package select, add-ons, custom price, payment terms, atomic actions) | 2 | ✅ | `DealForm`, `CreateDealAction`, `UpdateDealAction`, `DealData` |
 | FR-19…FR-22 | Tracking & maintenance (material checklist gen, payment tracker, activity ledger) | 3 | ✅ | `DealFinalized`, `GenerateMaterialDeadlines`, observers, `DealShow` |
 | FR-23…FR-25 | Deal list + final summary (search, filter, progress, role-scoped) | 4 | ✅ | `DealList`, `DealShow` |
-| FR-26 | **Dashboard aggregate stats** | 4 | ⬜ | → WS-B |
+| FR-26 | **Dashboard aggregate stats** | 4 | ✅ | `DashboardService`, `Dashboard` (Livewire) |
 | — | **Seed & demo data** (catalog tiers + demo users) | all | ✅ | `SponsorCatalogSeeder`, `DatabaseSeeder` |
 | — | **Production hardening** (PostgreSQL/MySQL, Docker, Nginx) | infra | ⬜ | → WS-D |
 | — | Stretch: reopen finalized deals, material uploads, notifications | 3/4 | ⬜ | → WS-E |
@@ -55,12 +55,12 @@ Manage the sponsorship catalog exactly as the PDF Prospectus: items, packages (t
 
 Replace the starter placeholder dashboard with a role-aware summary.
 
-| # | Task | Files | Deps |
-|---|---|---|---|
-| B1 | **Stats queries** — aggregate: total committed (`SUM(final_price)`), deals by status, payment progress (paid vs total across terms), material progress; J4U = global, doctor = scoped to `doctor_id` | `app/Services/DashboardService.php` (or Livewire `Dashboard` component) | — |
-| B2 | **Dashboard component** — stat cards (Total Value, Open Deals, Finalized, Outstanding Payments) + recent deals table + link to `/deals` | `app/Livewire/Dashboard.php`, `resources/views/livewire/dashboard.blade.php` | B1 |
-| B3 | **Wire the route** — point `/dashboard` at the component (currently `Route::view`) | `routes/web.php` | B2 |
-| B4 | **Tests** — doctor's dashboard shows only their figures; J4U sees global figures; zero-deal state renders | `tests/Feature/DashboardStatsTest.php` | B2 |
+| # | Task | Files | Deps | Status |
+|---|---|---|---|---|
+| B1 | **Stats queries** — aggregate: total committed (`SUM(final_price)`), deals by status, payment progress (paid vs total across terms), material progress; J4U = global, doctor = scoped to `doctor_id` | `app/Services/DashboardService.php` | — | ✅ |
+| B2 | **Dashboard component** — stat cards (Total Value, Open Deals, Finalized, Outstanding Payments) + recent deals table + link to `/deals` | `app/Livewire/Dashboard.php`, `resources/views/livewire/dashboard.blade.php` | B1 | ✅ |
+| B3 | **Wire the route** — point `/dashboard` at the component (currently `Route::view`) | `routes/web.php` | B2 | ✅ |
+| B4 | **Tests** — doctor's dashboard shows only their figures; J4U sees global figures; zero-deal state renders | `tests/Feature/DashboardStatsTest.php` | B2 | ✅ |
 
 **DoD (WS-B):** Both roles see an accurate, scoped summary on `/dashboard`; figures match the DB in tests (✅ AC-4 reinforced).
 
@@ -110,9 +110,9 @@ WS-C  ✅ done — seed data (catalog + demo users + example deal)
   ↓
 WS-A  ✅ done — catalog CRUD (items, packages) → AC-1 closed
   ↓
-WS-B  ⬜ next — dashboard stats (closes FR-26)
+WS-B  ✅ done — dashboard stats (FR-26 closed)
   ↓
-WS-D  ⬜ — production hardening
+WS-D  ⬜ next — production hardening
   ↓
 WS-E  ⬜ — stretch, as prioritized
 ```
@@ -130,9 +130,9 @@ WS-C first because a populated catalog makes WS-A and WS-B verifiable by hand. W
 | Material generation on finalize | `DealMaterialGenerationTest` | ✅ 4 tests |
 | Activity ledger | `ActivityLogTest` | ✅ 4 tests |
 | Catalog CRUD (WS-A) | `CatalogTest` | ✅ 10 tests |
-| Dashboard stats | `DashboardStatsTest` (new, WS-B) | ⬜ |
+| Dashboard stats (WS-B) | `DashboardStatsTest` | ✅ 4 tests |
 
-**Baseline:** 61 tests / 155 assertions green; PHPStan level 7 clean; Pint clean.
+**Baseline:** 65 tests / 171 assertions green; PHPStan level 7 clean; Pint clean.
 
 ---
 

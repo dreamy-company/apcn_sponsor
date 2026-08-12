@@ -4,6 +4,7 @@ use App\Livewire\Catalog\CatalogItemForm;
 use App\Livewire\Catalog\CatalogItemIndex;
 use App\Livewire\Catalog\CatalogPackageForm;
 use App\Livewire\Catalog\CatalogPackageIndex;
+use App\Livewire\Dashboard;
 use App\Livewire\DealForm;
 use App\Livewire\DealList;
 use App\Livewire\DealShow;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', Dashboard::class)->name('dashboard');
 
     Route::get('/deals', DealList::class)->name('deals.index');
 
