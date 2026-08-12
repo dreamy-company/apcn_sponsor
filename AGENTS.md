@@ -44,7 +44,8 @@ The AI Knowledge Base is the primary source of truth.
 
 Source of truth for product requirements (read before any feature work):
 
-- `.context/srs.md` — PRD v1.0 (approved): modules, RBAC, DB schema, logic hooks, acceptance criteria
+- `.context/srs.md` — SRS v2.0: functional requirements, schema, business rules, acceptance criteria
+- `.context/development-map.md` — feature development map: workstreams WS-A…WS-E, task breakdown, DoD
 - `.context/template.md` — this bootstrap template
 
 ---

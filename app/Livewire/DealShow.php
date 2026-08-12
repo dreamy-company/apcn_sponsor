@@ -42,7 +42,7 @@ class DealShow extends Component
 
         $this->deal->refresh();
 
-        $this->dispatch('toast', message: 'Deal finalized — material checklist generated.');
+        $this->dispatch('toast-show', slots: ['text' => 'Deal finalized — material checklist generated.'], dataset: ['variant' => 'success']);
     }
 
     public function markPaymentPaid(int $paymentTermId): void

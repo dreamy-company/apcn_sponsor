@@ -20,6 +20,18 @@
                         {{ __('Deals') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
+
+                @if (auth()->user()->isJ4u())
+                    <flux:sidebar.group :heading="__('Catalog')" class="grid">
+                        <flux:sidebar.item icon="list-bullet" :href="route('catalog.items.index')" :current="request()->routeIs('catalog.items.*')" wire:navigate>
+                            {{ __('Items') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="tag" :href="route('catalog.packages.index')" :current="request()->routeIs('catalog.packages.*')" wire:navigate>
+                            {{ __('Packages') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endif
             </flux:sidebar.nav>
 
             <flux:spacer />

@@ -2,24 +2,80 @@
 
 namespace Database\Seeders;
 
+use App\Enums\DealStatus;
+use App\Enums\PaymentStatus;
+use App\Enums\UserRole;
+use App\Models\Deal;
+use App\Models\Item;
+use App\Models\Package;
+use App\Models\Sponsor;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * Seed demo users, the sponsorship catalog, and one finalized example deal.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        User::create([
+            'name' => 'Tim J4U',
+            'email' => 'j4u@apcn2027.local',
+            'password' => 'password',
+            'role' => UserRole::J4U,
         ]);
+
+        User::create([
+            'name' => 'dr. Andini Putri',
+            'email' => 'doctor@apcn2027.local',
+            'password' => 'password',
+            'role' => UserRole::Doctor,
+        ]);
+
+        $this->call(SponsorCatalogSeeder::class);
+
+        $this->seedExampleDeal();
+    }
+
+    /**
+     * One finalized deal with payment terms and generated material checklist.
+     */
+    protected function seedExampleDeal(): void
+    {
+        $doctor = User::where('email', 'doctor@apcn2027.local')->firstOrFail();
+        $diamond = Package::where('name', 'Diamond')->firstOrFail();
+
+        $sponsor = Sponsor::create([
+            'company_name' => 'PT Pharma Sejahtera',
+            'pic_name' => 'Rina Wijaya',
+            'pic_contact' => '+62 812 9000 1000',
+        ]);
+
+        $deal = Deal::create([
+            'deal_number' => 'J4U-2027-0001',
+            'doctor_id' => $doctor->id,
+            'sponsor_id' => $sponsor->id,
+            'package_id' => $diamond->id,
+            'final_price' => 550_000_000,
+            'status' => DealStatus::Draft,
+        ]);
+
+        $deal->items()->attach(
+            $diamond->items->mapWithKeys(fn ($item): array => [
+                $item->id => ['is_addon' => false, 'custom_price' => null],
+            ])->all()
+        );
+
+        $addon = Item::where('name', 'E-Poster Recognition')->firstOrFail();
+        $deal->items()->attach($addon->id, ['is_addon' => true, 'custom_price' => 50_000_000]);
+
+        $deal->paymentTerms()->createMany([
+            ['description' => 'Termin 1 (DP 50%)', 'due_date' => now()->addMonths(2)->toDateString(), 'amount' => 275_000_000, 'status' => PaymentStatus::Paid],
+            ['description' => 'Termin 2 (50%)', 'due_date' => now()->addMonths(8)->toDateString(), 'amount' => 275_000_000, 'status' => PaymentStatus::Pending],
+        ]);
+
+        // Fires DealFinalized -> material checklist generation (observers active in seeder).
+        $deal->update(['status' => DealStatus::Finalized]);
     }
 }

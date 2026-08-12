@@ -100,7 +100,7 @@ Requirements are tagged **FR-<n>**. Priority: **M** (must), **S** (should), **C*
 |---|---|---|---|
 | FR-07 | M | Done (model/migration) | The system shall store **items** (`items`): name, type (category), `requires_material` boolean. |
 | FR-08 | M | Done (model/migration) | The system shall store **packages** (`packages`): name, `default_price`. A package relates many items via the `package_item` pivot. |
-| FR-09 | S | Model done; UI planned | The system shall provide J4U CRUD screens for items, packages, and add-ons (add-ons are items flagged/attached as add-on at deal level). |
+| FR-09 | S | Done | The system shall provide J4U CRUD screens for items, packages, and add-ons (add-ons are items flagged/attached as add-on at deal level). Catalog routes are J4U-only; items/packages referenced by deals are protected from deletion. |
 
 ### 3.3 Deal Management (Module 2)
 
@@ -241,7 +241,7 @@ Traceability to the PRD's checklist, with current status:
 
 | # | Criterion | Status |
 |---|---|---|
-| AC-1 | Tim J4U can build a package from multiple items. | Model/migration done (`package_item` pivot); CRUD UI planned (FR-09). |
+| AC-1 | Tim J4U can build a package from multiple items. | **Done** (FR-09), verified by `CatalogTest`. |
 | AC-2 | J4U can create a new deal, override default package price, add add-ons, and freely set payment terms. | **Done** (FR-10…FR-18), verified by `DealWorkflowTest`. |
 | AC-3 | After a deal is saved, the system automatically releases the material checklist to be charged to the sponsor. | **Done** (FR-19), verified by `DealMaterialGenerationTest`. |
 | AC-4 | A doctor logs in and can **only** view the summary of sponsors they invited (no edit/delete buttons). | **Done** (FR-05, FR-23…FR-25), verified by `DealAccessControlTest`. |
@@ -271,11 +271,10 @@ Traceability to the PRD's checklist, with current status:
 
 ## 11. Open Items / Known Gaps
 
-1. **Master-data CRUD UI** (items/packages/add-ons) not yet built — only models/migrations (FR-09).
-2. **Dashboard aggregate stats** planned (FR-26).
-3. **Database seeding** for the sponsor catalog (Diamond/Platinum/White Gold tiers) pending.
-4. **Edit-after-finalize policy** is intentionally restricted (BR-05); reopening finalized deals is a future decision.
-5. Production DB target is PostgreSQL/MySQL per PRD; currently developed/tested on SQLite — decimal/date semantics should be re-verified on the target DB.
+1. **Dashboard aggregate stats** planned (FR-26).
+2. **Database seeding** for the sponsor catalog (Diamond/Platinum/White Gold tiers) — **done** (`SponsorCatalogSeeder`), incl. demo users `j4u@apcn2027.local` / `doctor@apcn2027.local` and one finalized example deal.
+3. **Edit-after-finalize policy** is intentionally restricted (BR-05); reopening finalized deals is a future decision.
+4. Production DB target is PostgreSQL/MySQL per PRD; currently developed/tested on SQLite — decimal/date semantics should be re-verified on the target DB.
 
 ---
 
