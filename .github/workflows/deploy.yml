@@ -1,0 +1,93 @@
+name: 🚀 Deploy Laravel App to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Setup PHP & Composer Cache di CI Runner
+      - name: 🐘 Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2' # Sesuaikan dengan versi PHP proyekmu
+          extensions: mbstring, xml, ctype, iconv, mysql, pgsql, pdo_pgsql, pdo_mysql, bcmath, filter, json, tokenizer, blake2
+          coverage: none
+
+      # 3. Setup Node.js untuk Build Assets (Vite / Tailwind)
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # 4. Install PHP Dependencies (Production Mode)
+      - name: 📦 Install Composer Dependencies
+        run: |
+          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      # 5. Install & Build Frontend Assets
+      - name: 🎨 Build Frontend Assets
+        run: |
+          npm ci
+          npm run build
+
+      # 6. Buat File .env dari GitHub Secret
+      - name: 📝 Inject Production .env
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > .env
+
+      # 7. Kirim Artefak Siap Pakai ke VPS via RSYNC
+      - name: 🚚 Sync Files to VPS via RSYNC
+        uses: appleboy/rsync-action@v0.1.10
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          rsync_options: >-
+            -avz
+            --delete
+            --exclude='.git*'
+            --exclude='node_modules'
+            --exclude='tests'
+            --exclude='storage/logs/*'
+            --exclude='storage/framework/sessions/*'
+          source: "."
+          target: "/var/www/nama-app"
+
+      # 8. Optimization & Database Migration di VPS
+      - name: ⚙️ Execute Post-Deployment Commands on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            cd /var/www/nama-app
+
+            # Fix Permissions Folder Storage & Cache
+            sudo chown -R ubuntu:www-data storage bootstrap/cache
+            sudo chmod -R 775 storage bootstrap/cache
+
+            # Migration & Optimization Cache
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan event:cache
+
+            # Storage Symlink (jika belum ada)
+            php artisan storage:link || true
+
+            # Restart PHP-FPM / Queue Worker (jika ada)
+            sudo systemctl reload php8.2-fpm
