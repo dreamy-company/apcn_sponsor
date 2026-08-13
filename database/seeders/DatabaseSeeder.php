@@ -21,14 +21,14 @@ class DatabaseSeeder extends Seeder
     {
         User::create([
             'name' => 'Tim J4U',
-            'email' => 'j4u@apcn2027.local',
+            'email' => 'admin@gmail.com',
             'password' => 'password',
             'role' => UserRole::J4U,
         ]);
 
         User::create([
             'name' => 'dr. Andini Putri',
-            'email' => 'doctor@apcn2027.local',
+            'email' => 'doctor@gmail.com',
             'password' => 'password',
             'role' => UserRole::Doctor,
         ]);
