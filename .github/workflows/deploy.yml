@@ -18,7 +18,7 @@ jobs:
       - name: 🐘 Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2' # Sesuaikan versi PHP Laravel-mu
+          php-version: '8.3' # 👈 Ubah dari 8.2 ke 8.3
           extensions: mbstring, xml, ctype, iconv, mysql, pgsql, pdo_pgsql, pdo_mysql, bcmath, filter, json, tokenizer, blake2
           coverage: none
 
@@ -83,5 +83,5 @@ jobs:
             php artisan storage:link || true
 
             # Reload PHP-FPM
-            sudo systemctl reload php8.2-fpm || sudo systemctl reload php8.3-fpm
+            sudo systemctl reload php8.3-fpm
           EOF
