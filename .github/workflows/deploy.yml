@@ -1,4 +1,4 @@
-name: Deploy Laravel App to VPS
+name: 🚀 Deploy Laravel App to VPS (Password Auth)
 
 on:
   push:
@@ -14,11 +14,11 @@ jobs:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Setup PHP & Composer Cache di CI Runner
+      # 2. Setup PHP di CI Runner
       - name: 🐘 Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2' # Sesuaikan dengan versi PHP proyekmu
+          php-version: '8.2' # Sesuaikan versi PHP Laravel-mu
           extensions: mbstring, xml, ctype, iconv, mysql, pgsql, pdo_pgsql, pdo_mysql, bcmath, filter, json, tokenizer, blake2
           coverage: none
 
@@ -34,7 +34,7 @@ jobs:
         run: |
           composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
-      # 5. Install & Build Frontend Assets
+      # 5. Install & Build Frontend Assets (Vite)
       - name: 🎨 Build Frontend Assets
         run: |
           npm ci
@@ -45,34 +45,27 @@ jobs:
         run: |
           echo "${{ secrets.ENV_FILE }}" > .env
 
-      # 7. Kirim Artefak Siap Pakai ke VPS via RSYNC
-      - name: 🚚 Sync Files to VPS via RSYNC
-        uses: appleboy/rsync-action@v0.1.10
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          rsync_options: >-
-            -avz
-            --delete
-            --exclude='.git*'
-            --exclude='node_modules'
-            --exclude='tests'
-            --exclude='storage/logs/*'
-            --exclude='storage/framework/sessions/*'
-          source: "."
-          target: "/var/www/nama-app"
+      # 7. Install sshpass & Sync Files ke VPS via Password
+      - name: 🚚 Sync Files to VPS via RSYNC (Password Auth)
+        env:
+          SSHPASS: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y sshpass rsync
+          sshpass -e rsync -avz -e "ssh -p ${{ secrets.VPS_PORT || 22 }} -o StrictHostKeyChecking=no" \
+            --delete \
+            --exclude='.git*' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='storage/logs/*' \
+            --exclude='storage/framework/sessions/*' \
+            ./ ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/var/www/nama-app
 
-      # 8. Optimization & Database Migration di VPS
+      # 8. Eksekusi Command Artisan & Permission di VPS via Password
       - name: ⚙️ Execute Post-Deployment Commands on VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
+        env:
+          SSHPASS: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          sshpass -e ssh -p ${{ secrets.VPS_PORT || 22 }} -o StrictHostKeyChecking=no ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} << 'EOF'
             cd /var/www/nama-app
 
             # Fix Permissions Folder Storage & Cache
@@ -89,5 +82,6 @@ jobs:
             # Storage Symlink (jika belum ada)
             php artisan storage:link || true
 
-            # Restart PHP-FPM / Queue Worker (jika ada)
-            sudo systemctl reload php8.2-fpm
+            # Reload PHP-FPM
+            sudo systemctl reload php8.2-fpm || sudo systemctl reload php8.3-fpm
+          EOF
