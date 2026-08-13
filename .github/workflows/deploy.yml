@@ -58,7 +58,7 @@ jobs:
             --exclude='tests' \
             --exclude='storage/logs/*' \
             --exclude='storage/framework/sessions/*' \
-            ./ ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/var/www/nama-app
+            ./ ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/var/www/apcn-sponsor
 
       # 8. Eksekusi Command Artisan & Permission di VPS via Password
       - name: ⚙️ Execute Post-Deployment Commands on VPS
