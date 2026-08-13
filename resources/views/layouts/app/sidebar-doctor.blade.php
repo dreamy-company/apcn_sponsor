@@ -17,34 +17,12 @@
                     </flux:sidebar.item>
 
                     <flux:sidebar.item icon="briefcase" :href="route('deals.index')" :current="request()->routeIs('deals.*')" wire:navigate>
-                        {{ __('Deals') }}
+                        {{ __('My Deals') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
-
-                @if (auth()->user()->isJ4u())
-                    <flux:sidebar.group :heading="__('Catalog')" class="grid">
-                        <flux:sidebar.item icon="list-bullet" :href="route('catalog.items.index')" :current="request()->routeIs('catalog.items.*')" wire:navigate>
-                            {{ __('Items') }}
-                        </flux:sidebar.item>
-
-                        <flux:sidebar.item icon="tag" :href="route('catalog.packages.index')" :current="request()->routeIs('catalog.packages.*')" wire:navigate>
-                            {{ __('Packages') }}
-                        </flux:sidebar.item>
-                    </flux:sidebar.group>
-                @endif
             </flux:sidebar.nav>
 
             <flux:spacer />
-
-            <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>

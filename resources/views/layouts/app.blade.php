@@ -1,5 +1,13 @@
-<x-layouts::app.sidebar :title="$title ?? null">
-    <flux:main>
-        {{ $slot }}
-    </flux:main>
-</x-layouts::app.sidebar>
+@if (auth()->user()?->isDoctor())
+    <x-layouts::app.sidebar-doctor :title="$title ?? null">
+        <flux:main>
+            {{ $slot }}
+        </flux:main>
+    </x-layouts::app.sidebar-doctor>
+@else
+    <x-layouts::app.sidebar :title="$title ?? null">
+        <flux:main>
+            {{ $slot }}
+        </flux:main>
+    </x-layouts::app.sidebar>
+@endif

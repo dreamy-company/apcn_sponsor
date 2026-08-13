@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\DealStatus;
 use App\Enums\PaymentStatus;
-use App\Enums\UserRole;
 use App\Models\Deal;
 use App\Models\Item;
 use App\Models\Package;
@@ -15,23 +14,11 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed demo users, the sponsorship catalog, and one finalized example deal.
+     * Seed default admin/doctor users, the sponsorship catalog, and one finalized example deal.
      */
     public function run(): void
     {
-        User::create([
-            'name' => 'Tim J4U',
-            'email' => 'admin@gmail.com',
-            'password' => 'password',
-            'role' => UserRole::J4U,
-        ]);
-
-        User::create([
-            'name' => 'dr. Andini Putri',
-            'email' => 'doctor@gmail.com',
-            'password' => 'password',
-            'role' => UserRole::Doctor,
-        ]);
+        $this->call(UserSeeder::class);
 
         $this->call(SponsorCatalogSeeder::class);
 
@@ -43,7 +30,7 @@ class DatabaseSeeder extends Seeder
      */
     protected function seedExampleDeal(): void
     {
-        $doctor = User::where('email', 'doctor@apcn2027.local')->firstOrFail();
+        $doctor = User::where('email', 'doctor@gmail.com')->firstOrFail();
         $diamond = Package::where('name', 'Diamond')->firstOrFail();
 
         $sponsor = Sponsor::create([
