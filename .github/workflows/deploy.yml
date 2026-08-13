@@ -60,28 +60,36 @@ jobs:
             --exclude='storage/framework/sessions/*' \
             ./ ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/var/www/apcn-sponsor
 
-      # 8. Eksekusi Command Artisan & Permission di VPS via Password
+     # 8. Eksekusi Command Artisan & Permission di VPS via Password
       - name: ⚙️ Execute Post-Deployment Commands on VPS
         env:
           SSHPASS: ${{ secrets.VPS_PASSWORD }}
         run: |
           sshpass -e ssh -p ${{ secrets.VPS_PORT || 22 }} -o StrictHostKeyChecking=no ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} << 'EOF'
-            cd /var/www/nama-app
+            cd /var/www/apcn-sponsor
 
-            # Fix Permissions Folder Storage & Cache
+            # 1. Pastikan seluruh direktori storage & bootstrap/cache ada
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/framework/views
+            mkdir -p storage/framework/cache
+            mkdir -p storage/logs
+            mkdir -p bootstrap/cache
+
+            # 2. Fix Owner & Permission Folder Storage + Cache untuk Nginx/PHP-FPM (www-data)
             sudo chown -R ubuntu:www-data storage bootstrap/cache
             sudo chmod -R 775 storage bootstrap/cache
+            sudo chmod -R 777 storage/framework/views storage/framework/cache storage/framework/sessions
 
-            # Migration & Optimization Cache
+            # 3. Migration & Optimization Cache
             php artisan migrate --force
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
             php artisan event:cache
 
-            # Storage Symlink (jika belum ada)
+            # 4. Storage Symlink
             php artisan storage:link || true
 
-            # Reload PHP-FPM
-            sudo systemctl reload php8.3-fpm
+            # 5. Reload PHP-FPM
+            sudo systemctl reload php8.3-fpm || sudo systemctl reload php8.2-fpm
           EOF
