@@ -136,6 +136,15 @@ Requirements are tagged **FR-<n>**. Priority: **M** (must), **S** (should), **C*
 | FR-25 | M | Done | J4U shall be able to finalize a draft deal from the summary page and to mark payments/materials received there. |
 | FR-26 | S | Done | Dashboard with aggregate statistics (total committed value, deals by status, payment progress, material progress). `DashboardService` computes role-scoped figures; `Dashboard` Livewire component renders stat cards + recent deals. |
 
+### 3.6 User Management (Module 5)
+
+| ID | Priority | Status | Requirement |
+|---|---|---|---|
+| FR-27 | M | Done | J4U-only user management screen (`/users*`, `role:j4u`) listing users with search (name/email), role badge, deal count, and edit/delete actions. |
+| FR-28 | M | Done | J4U can create users (name, email, role `doctor`/`j4u`, password min 8 with confirmation). Admin-provisioned accounts are auto-verified — the mail driver is `log`, so verification emails cannot be delivered. |
+| FR-29 | M | Done | J4U can edit users (name, email, role) and reset passwords; a blank password keeps the current one. |
+| FR-30 | M | Done | Safety guards: a J4U cannot delete their own account, cannot delete a user who has deals (`deals.doctor_id` cascade would destroy the deals), and cannot change their own role (lockout prevention). |
+
 ---
 
 ## 4. Data Requirements
@@ -264,8 +273,8 @@ Traceability to the PRD's checklist, with current status:
 | Observers | `app/Observers/` |
 | Event / Listener | `app/Events/DealFinalized.php`, `app/Listeners/GenerateMaterialDeadlines.php` |
 | Audit helper | `app/Support/ActivityLogger.php` |
-| Livewire components | `app/Livewire/DealList.php`, `DealForm.php`, `DealShow.php` |
-| Views | `resources/views/livewire/deal-*.blade.php` |
+| Livewire components | `app/Livewire/DealList.php`, `DealForm.php`, `DealShow.php`, `app/Livewire/Users/` (`UserIndex`, `UserForm`), `app/Livewire/Catalog/` |
+| Views | `resources/views/livewire/deal-*.blade.php`, `resources/views/livewire/users/*.blade.php` |
 | Migrations | `database/migrations/2026_08_12_0000*.php` |
 | Tests | `tests/Feature/DealAccessControlTest.php`, `DealWorkflowTest.php`, `DealMaterialGenerationTest.php`, `ActivityLogTest.php` |
 
@@ -277,6 +286,7 @@ Traceability to the PRD's checklist, with current status:
 2. **Database seeding** for the sponsor catalog (Diamond/Platinum/White Gold tiers) — **done** (`SponsorCatalogSeeder`), incl. demo users `j4u@apcn2027.local` / `doctor@apcn2027.local` and one finalized example deal.
 3. **Edit-after-finalize policy** is intentionally restricted (BR-05); reopening finalized deals is a future decision.
 4. ~~Production DB target verification~~ — **done**: migrations, seed, and the full test suite verified on **MySQL 8.0.30** (`phpunit.mysql.xml`). No Docker: app runs via Laragon directly.
+5. **User management** — **done** (FR-27…FR-30): J4U-only `/users` module (list/create/edit + guards), covered by `UserManagementTest`.
 
 ---
 

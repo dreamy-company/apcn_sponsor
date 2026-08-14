@@ -55,6 +55,16 @@
                         >
                             {{ __('Packages') }}
                         </flux:sidebar.item>
+
+                        <flux:sidebar.item
+                            icon="users"
+                            :href="route('users.index')"
+                            :current="request()->routeIs('users.*')"
+                            wire:navigate
+                            class="text-slate-300/80! hover:bg-white/5! hover:text-white! data-current:bg-teal-500/15! dark:data-current:bg-teal-500/15! data-current:border-teal-400/30! dark:data-current:border-teal-400/30! data-current:text-teal-300! dark:data-current:text-teal-300! hover:data-current:text-teal-300! dark:hover:data-current:text-teal-300! data-current:shadow-sm!"
+                        >
+                            {{ __('Users') }}
+                        </flux:sidebar.item>
                     </flux:sidebar.group>
                 @endif
             </flux:sidebar.nav>

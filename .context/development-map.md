@@ -29,6 +29,7 @@ Every row in the inventory table is an **SRS requirement** (FR-xx). Work is orga
 | FR-26 | **Dashboard aggregate stats** | 4 | ✅ | `DashboardService`, `Dashboard` (Livewire) |
 | — | **Seed & demo data** (catalog tiers + demo users) | all | ✅ | `SponsorCatalogSeeder`, `DatabaseSeeder` |
 | — | **Production hardening** (MySQL via Laragon, no Docker) | infra | 🚧 | → WS-D |
+| — | **User management** (J4U-only list/create/edit, FR-27…FR-30) | all | ✅ | `UserIndex`, `UserForm`, `UserManagementTest` |
 | — | Stretch: reopen finalized deals, material uploads, notifications | 3/4 | ⬜ | → WS-E |
 
 ---
@@ -111,6 +112,8 @@ WS-C  ✅ done — seed data (catalog + demo users + example deal)
 WS-A  ✅ done — catalog CRUD (items, packages) → AC-1 closed
   ↓
 WS-B  ✅ done — dashboard stats (FR-26 closed)
+  ↓
+User mgmt  ✅ done — `/users` module (FR-27…FR-30, `UserManagementTest`)
   ↓
 WS-D  ⬜ next — production hardening
   ↓

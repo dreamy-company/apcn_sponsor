@@ -8,6 +8,8 @@ use App\Livewire\Dashboard;
 use App\Livewire\DealForm;
 use App\Livewire\DealList;
 use App\Livewire\DealShow;
+use App\Livewire\Users\UserForm;
+use App\Livewire\Users\UserIndex;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
@@ -35,6 +37,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/packages', CatalogPackageIndex::class)->name('catalog.packages.index');
         Route::get('/packages/create', CatalogPackageForm::class)->name('catalog.packages.create');
         Route::get('/packages/{package}/edit', CatalogPackageForm::class)->name('catalog.packages.edit');
+    });
+
+    // User management (J4U-only)
+    Route::middleware('role:j4u')->prefix('users')->group(function () {
+        Route::get('/', UserIndex::class)->name('users.index');
+        Route::get('/create', UserForm::class)->name('users.create');
+        Route::get('/{user}/edit', UserForm::class)->name('users.edit');
     });
 });
 
