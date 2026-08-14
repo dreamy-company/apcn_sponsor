@@ -5,9 +5,12 @@ namespace App\Livewire\Catalog;
 use App\Models\Package;
 use Illuminate\View\View;
 use Livewire\Component;
+use Mary\Traits\Toast;
 
 class CatalogPackageIndex extends Component
 {
+    use Toast;
+
     public function mount(): void
     {
         abort_unless(auth()->user()->isJ4u(), 403);
@@ -20,14 +23,14 @@ class CatalogPackageIndex extends Component
         $package = Package::findOrFail($packageId);
 
         if ($package->deals()->exists()) {
-            $this->dispatch('toast-show', slots: ['text' => 'This package is used by one or more deals and cannot be deleted.'], dataset: ['variant' => 'danger']);
+            $this->error(__('This package is used by one or more deals and cannot be deleted.'));
 
             return;
         }
 
         $package->delete();
 
-        $this->dispatch('toast-show', slots: ['text' => 'Package deleted.'], dataset: ['variant' => 'success']);
+        $this->success(__('Package deleted.'));
     }
 
     public function render(): View

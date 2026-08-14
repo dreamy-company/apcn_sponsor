@@ -6,9 +6,12 @@ use App\Models\User;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Mary\Traits\Toast;
 
 class UserIndex extends Component
 {
+    use Toast;
+
     #[Url]
     public string $search = '';
 
@@ -21,29 +24,23 @@ class UserIndex extends Component
     {
         $this->authorizeJ4u();
 
-        $user = User::findOrFail($userId);
+        $user = User::admins()->findOrFail($userId);
 
         if ($user->id === auth()->id()) {
-            $this->dispatch('toast-show', slots: ['text' => 'You cannot delete your own account.'], dataset: ['variant' => 'danger']);
-
-            return;
-        }
-
-        if ($user->deals()->exists()) {
-            $this->dispatch('toast-show', slots: ['text' => 'This user has deals and cannot be deleted.'], dataset: ['variant' => 'danger']);
+            $this->error(__('You cannot delete your own account.'));
 
             return;
         }
 
         $user->delete();
 
-        $this->dispatch('toast-show', slots: ['text' => 'User deleted.'], dataset: ['variant' => 'success']);
+        $this->success(__('Administrator deleted.'));
     }
 
     public function render(): View
     {
         return view('livewire.users.user-index', [
-            'users' => User::query()
+            'users' => User::admins()
                 ->withCount('deals')
                 ->when($this->search !== '', fn ($q) => $q->where(function ($q): void {
                     $q->where('name', 'like', '%'.$this->search.'%')

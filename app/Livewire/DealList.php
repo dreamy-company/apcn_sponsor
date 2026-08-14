@@ -18,14 +18,13 @@ class DealList extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->isJ4u() || auth()->user()->isDoctor(), 403);
+        abort_unless(auth()->user()->isJ4u(), 403);
     }
 
     public function render(): View
     {
         $query = Deal::query()
             ->with(['sponsor', 'doctor', 'package'])
-            ->when(! auth()->user()->isJ4u(), fn ($q) => $q->where('doctor_id', auth()->id()))
             ->when($this->search !== '', fn ($q) => $q->whereHas('sponsor', fn ($s) => $s->where('company_name', 'like', '%'.$this->search.'%')))
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
             ->latest();

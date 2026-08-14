@@ -10,6 +10,7 @@ use App\Models\Deal;
 use App\Models\Item;
 use App\Models\Package;
 use App\Models\User;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Exists;
 use Illuminate\View\View;
@@ -17,7 +18,15 @@ use Livewire\Component;
 
 class DealForm extends Component
 {
+    public const TOTAL_STEPS = 4;
+
     public ?Deal $deal = null;
+
+    /** Current wizard step (1 Initiation · 2 Package & Items · 3 Payment Terms · 4 Summary). */
+    public int $currentStep = 1;
+
+    /** Furthest step reached — visited steps are clickable in the stepper. */
+    public int $maxVisited = 1;
 
     public int $doctorId = 0;
 
@@ -75,17 +84,66 @@ class DealForm extends Component
             $this->paymentTerms = [$this->emptyTerm()];
             $this->rebuildItems();
         }
+
+        // When editing, every step is already valid — allow free navigation.
+        if ($deal) {
+            $this->maxVisited = self::TOTAL_STEPS;
+        }
+    }
+
+    /**
+     * Validate the current step, then advance. Step 2 also requires ≥1 item.
+     */
+    public function nextStep(): void
+    {
+        $rules = $this->rulesForStep($this->currentStep);
+
+        if ($rules !== []) {
+            $this->validate($rules);
+        }
+
+        if ($this->currentStep === 2 && $this->checkedItemCount() === 0) {
+            $this->addError('items', __('Select at least one item.'));
+
+            return;
+        }
+
+        $this->currentStep = min($this->currentStep + 1, self::TOTAL_STEPS);
+        $this->maxVisited = max($this->maxVisited, $this->currentStep);
+    }
+
+    public function previousStep(): void
+    {
+        $this->currentStep = max(1, $this->currentStep - 1);
+    }
+
+    /**
+     * Jump to an already-visited step (used by the stepper).
+     */
+    public function goToStep(int $step): void
+    {
+        if ($step >= 1 && $step <= $this->maxVisited) {
+            $this->currentStep = $step;
+        }
+    }
+
+    protected function checkedItemCount(): int
+    {
+        return collect($this->items)->filter(fn (array $row): bool => $row['checked'])->count();
     }
 
     public function updatedPackageId(): void
     {
-        // Preserve user's current selection while reassigning base/add-on flags.
+        // Snapshot current choices, then rebuild base/add-on flags for the new
+        // package (base items become pre-checked — SRS FR-12).
         $current = collect($this->items)->mapWithKeys(fn (array $row): array => [$row['item_id'] => $row])->all();
 
         $this->rebuildItems();
 
+        // Preserve the user's prior choice only for items that remain add-ons;
+        // base items of the newly selected package stay pre-checked.
         $this->items = collect($this->items)->map(function (array $row) use ($current): array {
-            if (isset($current[$row['item_id']])) {
+            if ($row['is_addon'] && isset($current[$row['item_id']])) {
                 $row['checked'] = $current[$row['item_id']]['checked'];
                 $row['custom_price'] = $current[$row['item_id']]['custom_price'];
             }
@@ -193,6 +251,23 @@ class DealForm extends Component
     protected function emptyTerm(): array
     {
         return ['description' => '', 'due_date' => '', 'amount' => ''];
+    }
+
+    /**
+     * The subset of rules validated when advancing from a given step.
+     *
+     * @return array<string, list<string|Exists>>
+     */
+    protected function rulesForStep(int $step): array
+    {
+        $rules = $this->rules();
+
+        return match ($step) {
+            1 => Arr::only($rules, ['doctorId', 'companyName', 'picName', 'picContact']),
+            2 => Arr::only($rules, ['packageId', 'finalPrice', 'items.*.checked', 'items.*.custom_price']),
+            3 => Arr::only($rules, ['paymentTerms.*.description', 'paymentTerms.*.due_date', 'paymentTerms.*.amount']),
+            default => [],
+        };
     }
 
     /**

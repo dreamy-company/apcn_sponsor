@@ -1,186 +1,256 @@
 <section class="w-full">
+    @php
+        $steps = [
+            1 => ['label' => __('Initiation'), 'desc' => __('Doctor & sponsor')],
+            2 => ['label' => __('Package & Items'), 'desc' => __('Scope & price')],
+            3 => ['label' => __('Payment Terms'), 'desc' => __('Milestones')],
+            4 => ['label' => __('Summary'), 'desc' => __('Review & save')],
+        ];
+        $checkedItems = collect($items)->where('checked', true);
+        $selectedDoctor = $doctors->firstWhere('id', $doctorId);
+        $selectedPackage = $packages->firstWhere('id', $packageId);
+        $termsTotal = collect($paymentTerms)->sum(fn ($t) => (float) ($t['amount'] ?: 0));
+    @endphp
+
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <flux:heading size="xl">{{ $deal ? __('Edit Deal') : __('New Deal') }}</flux:heading>
-                <flux:text class="mt-1">
+                <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">
+                    {{ $deal ? __('Edit Deal') : __('New Deal') }}
+                </h1>
+                <p class="mt-1 text-base-content/60">
                     @if ($deal)
-                        {{ __('Customizing deal ') }}<span class="font-medium">{{ $deal->deal_number }}</span>
+                        {{ __('Customizing deal ') }}<span class="font-semibold">{{ $deal->deal_number }}</span>
                     @else
                         {{ __('Register a sponsorship deal negotiated with a doctor.') }}
                     @endif
-                </flux:text>
+                </p>
             </div>
-            <flux:button variant="ghost" href="{{ route('deals.index') }}" wire:navigate>
-                {{ __('Back') }}
-            </flux:button>
+            <x-button :label="__('Back to deals')" icon="o-arrow-left" :link="route('deals.index')" class="btn-ghost" />
         </div>
 
-        @if (session('status'))
-            <flux:callout variant="success" icon="check-circle">{{ session('status') }}</flux:callout>
-        @endif
-
-        <form wire:submit="save" class="space-y-6">
-            {{-- 1. Initiation --}}
-            <flux:card>
-                <flux:heading size="lg">1 · {{ __('Initiation') }}</flux:heading>
-
-                <flux:fieldset>
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <flux:field>
-                            <flux:label>{{ __('Doctor (Initiator)') }}</flux:label>
-                            <flux:select wire:model="doctorId" placeholder="{{ __('Select doctor...') }}">
-                                @foreach ($doctors as $doctor)
-                                    <option value="{{ $doctor->id }}">{{ $doctor->name }}</option>
-                                @endforeach
-                            </flux:select>
-                            <flux:error name="doctorId" />
-                        </flux:field>
-
-                        <flux:field>
-                            <flux:label>{{ __('Company Name') }}</flux:label>
-                            <flux:input wire:model="companyName" placeholder="PT Contoh Sejahtera" />
-                            <flux:error name="companyName" />
-                        </flux:field>
-
-                        <flux:field>
-                            <flux:label>{{ __('PIC Name') }}</flux:label>
-                            <flux:input wire:model="picName" placeholder="{{ __('Budi Santoso') }}" />
-                            <flux:error name="picName" />
-                        </flux:field>
-
-                        <flux:field>
-                            <flux:label>{{ __('PIC Contact') }}</flux:label>
-                            <flux:input wire:model="picContact" placeholder="+62 812 3456 7890" />
-                            <flux:error name="picContact" />
-                        </flux:field>
-                    </div>
-                </flux:fieldset>
-            </flux:card>
-
-            {{-- 2. Package & Items --}}
-            <flux:card>
-                <flux:heading size="lg">2 · {{ __('Package & Items') }}</flux:heading>
-
-                <flux:fieldset>
-                    <flux:field>
-                        <flux:label>{{ __('Base Package (Tier)') }}</flux:label>
-                        <flux:select wire:model.live="packageId" placeholder="{{ __('No base package') }}">
-                            <option value="">— {{ __('No base package') }} —</option>
-                            @foreach ($packages as $package)
-                                <option value="{{ $package->id }}">
-                                    {{ $package->name }} — Rp {{ number_format((float) $package->default_price, 0, ',', '.') }}
-                                </option>
-                            @endforeach
-                        </flux:select>
-                        <flux:error name="packageId" />
-                    </flux:field>
-
-                    <flux:separator class="my-4" />
-
-                    <flux:field>
-                        <flux:label>{{ __('Items') }}</flux:label>
-
-                        <div class="space-y-2">
-                            @forelse ($items as $index => $item)
-                                <div class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
-                                    <div class="flex items-center gap-3">
-                                        <flux:checkbox wire:model="items.{{ $index }}.checked" />
-                                        <div>
-                                            <div class="text-sm font-medium">{{ $item['name'] }}</div>
-                                            <div class="text-xs text-neutral-500">
-                                                @if ($item['is_addon'])
-                                                    {{ __('Add-on') }} — {{ __('optional custom price') }}
-                                                @else
-                                                    {{ __('Package item') }}
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    @if ($item['is_addon'])
-                                        <flux:input
-                                            wire:model="items.{{ $index }}.custom_price"
-                                            class="w-40"
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            placeholder="{{ __('Custom price') }}"
-                                        />
+        <div class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+            {{-- Left: vertical stepper --}}
+            <x-card class="h-fit lg:sticky lg:top-24">
+                <ul class="space-y-1">
+                    @foreach ($steps as $n => $step)
+                        <li>
+                            <button type="button"
+                                    wire:click="goToStep({{ $n }})"
+                                    @disabled($n > $maxVisited)
+                                    @class([
+                                        'flex w-full items-center gap-3 rounded-box border-s-2 px-3 py-2.5 text-start transition',
+                                        'border-primary bg-primary-soft' => $n === $currentStep,
+                                        'border-transparent hover:bg-base-200' => $n !== $currentStep,
+                                        'cursor-not-allowed opacity-40' => $n > $maxVisited,
+                                    ])>
+                                <span @class([
+                                    'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                                    'bg-primary text-primary-content' => $n <= $currentStep,
+                                    'bg-base-300 text-base-content/60' => $n > $currentStep,
+                                ])>
+                                    @if ($n < $currentStep)
+                                        <x-icon name="o-check" class="size-4" />
+                                    @else
+                                        {{ $n }}
                                     @endif
+                                </span>
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-bold {{ $n === $currentStep ? 'text-primary' : '' }}">{{ $step['label'] }}</span>
+                                    <span class="block text-xs text-base-content/50">{{ $step['desc'] }}</span>
+                                </span>
+                            </button>
+                        </li>
+                    @endforeach
+                </ul>
+            </x-card>
+
+            {{-- Right: current step --}}
+            <x-card>
+                <form wire:submit="save">
+                    {{-- STEP 1 · Initiation --}}
+                    <div @class(['hidden' => $currentStep !== 1])>
+                        <h2 class="text-lg font-extrabold">{{ __('Initiation') }}</h2>
+                        <p class="mt-1 text-sm text-base-content/60">{{ __('Who initiated the deal and which sponsor is it with.') }}</p>
+
+                        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                            <x-select
+                                :label="__('Doctor (Initiator)')"
+                                wire:model="doctorId"
+                                :options="$doctors"
+                                option-value="id"
+                                option-label="name"
+                                :placeholder="__('Select doctor...')"
+                            />
+                            <x-input :label="__('Company Name')" wire:model="companyName" placeholder="PT Contoh Sejahtera" />
+                            <x-input :label="__('PIC Name')" wire:model="picName" :placeholder="__('Budi Santoso')" />
+                            <x-input :label="__('PIC Contact')" wire:model="picContact" placeholder="+62 812 3456 7890" />
+                        </div>
+                    </div>
+
+                    {{-- STEP 2 · Package & Items --}}
+                    <div @class(['hidden' => $currentStep !== 2])>
+                        <h2 class="text-lg font-extrabold">{{ __('Package & Items') }}</h2>
+                        <p class="mt-1 text-sm text-base-content/60">{{ __('Pick a base tier, adjust items, and set the agreed price.') }}</p>
+
+                        <div class="mt-4 space-y-4">
+                            <x-select
+                                :label="__('Base Package (Tier)')"
+                                wire:model.live="packageId"
+                                :options="$packages->map(fn ($p) => ['id' => $p->id, 'name' => $p->name.' — Rp '.number_format((float) $p->default_price, 0, ',', '.')])"
+                                option-value="id"
+                                option-label="name"
+                                :placeholder="'— '.__('No base package').' —'"
+                            />
+
+                            <div>
+                                <label class="fieldset-label mb-2 block text-sm font-semibold">{{ __('Items') }}</label>
+                                <div class="grid gap-2 sm:grid-cols-2">
+                                    @forelse ($items as $index => $item)
+                                        <label @class([
+                                            'flex cursor-pointer items-start justify-between gap-3 rounded-box border p-3 transition',
+                                            'border-primary bg-primary-soft' => $item['checked'],
+                                            'border-base-300 hover:border-primary/40' => ! $item['checked'],
+                                        ])>
+                                            <div class="flex items-start gap-3">
+                                                <x-checkbox wire:model.live="items.{{ $index }}.checked" />
+                                                <div>
+                                                    <div class="text-sm font-semibold">{{ $item['name'] }}</div>
+                                                    <div class="text-xs text-base-content/50">
+                                                        {{ $item['is_addon'] ? __('Add-on') : __('Package item') }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @if ($item['is_addon'])
+                                                <x-input
+                                                    wire:model="items.{{ $index }}.custom_price"
+                                                    class="w-28"
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    :placeholder="__('Price')"
+                                                    @click.stop
+                                                />
+                                            @endif
+                                        </label>
+                                    @empty
+                                        <p class="text-base-content/50">{{ __('No items in the catalog yet.') }}</p>
+                                    @endforelse
                                 </div>
-                            @empty
-                                <flux:text class="text-neutral-500">{{ __('No items in the catalog yet.') }}</flux:text>
-                            @endforelse
+                                @error('items') <div class="mt-1 text-error">{{ $message }}</div> @enderror
+                            </div>
+
+                            <x-input :label="__('Final Price (IDR)')" wire:model="finalPrice" type="number" min="0" step="0.01" placeholder="0" prefix="Rp" />
+                        </div>
+                    </div>
+
+                    {{-- STEP 3 · Payment Terms --}}
+                    <div @class(['hidden' => $currentStep !== 3])>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-lg font-extrabold">{{ __('Payment Terms') }}</h2>
+                                <p class="mt-1 text-sm text-base-content/60">{{ __('Break the deal into payment milestones.') }}</p>
+                            </div>
+                            <x-button :label="__('Add Term')" icon="o-plus" type="button" wire:click="addPaymentTerm" class="btn-ghost btn-sm" />
                         </div>
 
-                        <flux:error name="items" />
-                    </flux:field>
+                        <div class="mt-4 space-y-3">
+                            @foreach ($paymentTerms as $index => $term)
+                                <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-end">
+                                    <x-input :label="__('Description')" wire:model="paymentTerms.{{ $index }}.description" :placeholder="__('Termin 1 (DP 50%)')" />
+                                    <x-input :label="__('Due Date')" wire:model="paymentTerms.{{ $index }}.due_date" type="date" />
+                                    <x-input :label="__('Amount (IDR)')" wire:model="paymentTerms.{{ $index }}.amount" type="number" min="0" step="0.01" placeholder="0" />
+                                    <x-button icon="o-trash" type="button" wire:click="removePaymentTerm({{ $index }})" class="btn-ghost btn-circle text-error" :aria-label="__('Remove term')" />
+                                </div>
+                            @endforeach
+                        </div>
 
-                    <flux:field class="mt-4">
-                        <flux:label>{{ __('Final Price (IDR)') }}</flux:label>
-                        <flux:input wire:model="finalPrice" type="number" min="0" step="0.01" placeholder="0" />
-                        <flux:error name="finalPrice" />
-                    </flux:field>
-                </flux:fieldset>
-            </flux:card>
-
-            {{-- 3. Payment Terms --}}
-            <flux:card>
-                <div class="flex items-center justify-between">
-                    <flux:heading size="lg">3 · {{ __('Payment Terms') }}</flux:heading>
-                    <flux:button type="button" variant="ghost" wire:click="addPaymentTerm" icon="plus">
-                        {{ __('Add Term') }}
-                    </flux:button>
-                </div>
-
-                <flux:fieldset>
-                    <div class="space-y-3">
-                        @foreach ($paymentTerms as $index => $term)
-                            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-end">
-                                <flux:field>
-                                    <flux:label>{{ __('Description') }}</flux:label>
-                                    <flux:input wire:model="paymentTerms.{{ $index }}.description" placeholder="{{ __('Termin 1 (DP 50%)') }}" />
-                                    <flux:error name="paymentTerms.{{ $index }}.description" />
-                                </flux:field>
-
-                                <flux:field>
-                                    <flux:label>{{ __('Due Date') }}</flux:label>
-                                    <flux:input wire:model="paymentTerms.{{ $index }}.due_date" type="date" />
-                                    <flux:error name="paymentTerms.{{ $index }}.due_date" />
-                                </flux:field>
-
-                                <flux:field>
-                                    <flux:label>{{ __('Amount (IDR)') }}</flux:label>
-                                    <flux:input wire:model="paymentTerms.{{ $index }}.amount" type="number" min="0" step="0.01" placeholder="0" />
-                                    <flux:error name="paymentTerms.{{ $index }}.amount" />
-                                </flux:field>
-
-                                <flux:button
-                                    type="button"
-                                    variant="subtle"
-                                    icon="trash"
-                                    wire:click="removePaymentTerm({{ $index }})"
-                                    aria-label="{{ __('Remove term') }}"
-                                />
-                            </div>
-                        @endforeach
+                        @if ($paymentTerms === [])
+                            <p class="mt-2 text-base-content/50">{{ __('No payment terms yet.') }}</p>
+                        @endif
                     </div>
 
-                    @if ($paymentTerms === [])
-                        <flux:text class="mt-2 text-neutral-500">{{ __('No payment terms yet.') }}</flux:text>
-                    @endif
-                </flux:fieldset>
-            </flux:card>
+                    {{-- STEP 4 · Summary --}}
+                    <div @class(['hidden' => $currentStep !== 4])>
+                        <h2 class="text-lg font-extrabold">{{ __('Summary') }}</h2>
+                        <p class="mt-1 text-sm text-base-content/60">{{ __('Review before saving. Click a step on the left to edit.') }}</p>
 
-            <div class="flex justify-end gap-3">
-                <flux:button variant="ghost" href="{{ route('deals.index') }}" wire:navigate>
-                    {{ __('Cancel') }}
-                </flux:button>
-                <flux:button variant="primary" type="submit">
-                    {{ $deal ? __('Save Changes') : __('Create Deal') }}
-                </flux:button>
-            </div>
-        </form>
+                        <div class="mt-4 space-y-4">
+                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                <div><span class="eyebrow text-base-content/50">{{ __('Doctor') }}</span><div class="mt-1 text-sm font-semibold">{{ $selectedDoctor?->name ?? '—' }}</div></div>
+                                <div><span class="eyebrow text-base-content/50">{{ __('Company') }}</span><div class="mt-1 text-sm font-semibold">{{ $companyName ?: '—' }}</div></div>
+                                <div><span class="eyebrow text-base-content/50">{{ __('PIC') }}</span><div class="mt-1 text-sm font-semibold">{{ $picName ?: '—' }}</div><div class="text-xs text-base-content/50">{{ $picContact }}</div></div>
+                                <div><span class="eyebrow text-base-content/50">{{ __('Package') }}</span><div class="mt-1 text-sm font-semibold">{{ $selectedPackage?->name ?? __('Custom') }}</div></div>
+                            </div>
+
+                            <div class="grid gap-4 sm:grid-cols-3">
+                                <div class="rounded-box bg-base-200 p-4">
+                                    <div class="eyebrow text-base-content/50">{{ __('Final Price') }}</div>
+                                    <div class="mt-1 text-xl font-extrabold">Rp {{ number_format((float) ($finalPrice ?: 0), 0, ',', '.') }}</div>
+                                </div>
+                                <div class="rounded-box bg-base-200 p-4">
+                                    <div class="eyebrow text-base-content/50">{{ __('Items selected') }}</div>
+                                    <div class="mt-1 text-xl font-extrabold">{{ $checkedItems->count() }}</div>
+                                </div>
+                                <div class="rounded-box bg-base-200 p-4">
+                                    <div class="eyebrow text-base-content/50">{{ __('Payment terms total') }}</div>
+                                    <div class="mt-1 text-xl font-extrabold">Rp {{ number_format($termsTotal, 0, ',', '.') }}</div>
+                                    @if ($termsTotal != (float) ($finalPrice ?: 0))
+                                        <div class="mt-0.5 text-xs text-warning">{{ __('differs from final price') }}</div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div>
+                                <span class="eyebrow text-base-content/50">{{ __('Items') }}</span>
+                                <div class="mt-1 flex flex-wrap gap-1.5">
+                                    @forelse ($checkedItems as $item)
+                                        <span class="badge badge-soft {{ $item['is_addon'] ? 'badge-info' : 'badge-ghost' }}">
+                                            {{ $item['name'] }}{{ $item['is_addon'] && $item['custom_price'] !== '' ? ' · Rp '.number_format((float) $item['custom_price'], 0, ',', '.') : '' }}
+                                        </span>
+                                    @empty
+                                        <span class="text-sm text-base-content/50">{{ __('No items selected.') }}</span>
+                                    @endforelse
+                                </div>
+                            </div>
+
+                            <div>
+                                <span class="eyebrow text-base-content/50">{{ __('Payment Terms') }}</span>
+                                <div class="mt-1 overflow-x-auto">
+                                    <table class="table table-sm">
+                                        <tbody>
+                                            @forelse ($paymentTerms as $term)
+                                                <tr>
+                                                    <td class="font-semibold">{{ $term['description'] ?: '—' }}</td>
+                                                    <td>{{ $term['due_date'] ?: '—' }}</td>
+                                                    <td>Rp {{ number_format((float) ($term['amount'] ?: 0), 0, ',', '.') }}</td>
+                                                </tr>
+                                            @empty
+                                                <tr><td class="text-base-content/50">{{ __('No payment terms.') }}</td></tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Footer navigation --}}
+                    <div class="mt-6 flex items-center justify-between border-t border-base-300 pt-4">
+                        @if ($currentStep > 1)
+                            <x-button :label="__('Back').': '.$steps[$currentStep - 1]['label']" icon="o-arrow-left" type="button" wire:click="previousStep" class="btn-ghost" />
+                        @else
+                            <x-button :label="__('Cancel')" :link="route('deals.index')" class="btn-ghost" />
+                        @endif
+
+                        @if ($currentStep < 4)
+                            <x-button :label="__('Next').': '.$steps[$currentStep + 1]['label']" icon-right="o-arrow-right" type="button" wire:click="nextStep" class="btn-primary" />
+                        @else
+                            <x-button :label="$deal ? __('Save Changes') : __('Create Deal')" type="submit" class="btn-primary" spinner="save" />
+                        @endif
+                    </div>
+                </form>
+            </x-card>
+        </div>
     </div>
 </section>

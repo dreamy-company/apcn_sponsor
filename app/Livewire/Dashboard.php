@@ -10,15 +10,12 @@ class Dashboard extends Component
 {
     public function render(): View
     {
-        $user = auth()->user();
-
-        $scope = $user->isJ4u() ? null : $user->id;
-
+        // App is admin-only; the dashboard always shows global figures.
         $service = app(DashboardService::class);
 
         return view('livewire.dashboard', [
-            'summary' => $service->summary($scope),
-            'recentDeals' => $service->recentDeals($scope),
+            'summary' => $service->summary(),
+            'recentDeals' => $service->recentDeals(),
         ]);
     }
 }

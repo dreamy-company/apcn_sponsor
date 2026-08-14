@@ -7,7 +7,6 @@ use App\Actions\User\UpdateUserAction;
 use App\DTOs\User\UserData;
 use App\Enums\UserRole;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -21,8 +20,6 @@ class UserForm extends Component
 
     public string $email = '';
 
-    public string $role = '';
-
     public string $password = '';
 
     public string $passwordConfirmation = '';
@@ -31,12 +28,16 @@ class UserForm extends Component
     {
         abort_unless(auth()->user()->isJ4u(), 403);
 
+        // Only admin accounts are managed here; doctors live under /doctors.
+        if ($user && ! $user->isJ4u()) {
+            abort(404);
+        }
+
         $this->user = $user;
 
         if ($user) {
             $this->name = $user->name;
-            $this->email = $user->email;
-            $this->role = $user->role->value;
+            $this->email = (string) $user->email;
         }
     }
 
@@ -44,17 +45,10 @@ class UserForm extends Component
     {
         $validated = $this->validate();
 
-        // J4U must not demote/promote their own account (would lock themselves out).
-        if ($this->user && $this->user->id === Auth::id() && $this->user->role->value !== $validated['role']) {
-            $this->addError('role', 'You cannot change your own role.');
-
-            return;
-        }
-
         $data = new UserData(
             name: $validated['name'],
             email: $validated['email'],
-            role: UserRole::from($validated['role']),
+            role: UserRole::J4U,
             password: $validated['password'] !== '' ? $validated['password'] : null,
         );
 
@@ -69,9 +63,7 @@ class UserForm extends Component
 
     public function render(): View
     {
-        return view('livewire.users.user-form', [
-            'roles' => UserRole::cases(),
-        ]);
+        return view('livewire.users.user-form');
     }
 
     /**
@@ -82,7 +74,6 @@ class UserForm extends Component
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user?->id)],
-            'role' => ['required', Rule::enum(UserRole::class)],
             'password' => $this->user
                 ? ['nullable', 'string', Password::default(), 'same:passwordConfirmation']
                 : ['required', 'string', Password::default(), 'same:passwordConfirmation'],

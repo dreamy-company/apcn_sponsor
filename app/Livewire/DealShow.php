@@ -12,16 +12,17 @@ use App\Models\MaterialDeadline;
 use App\Models\PaymentTerm;
 use Illuminate\View\View;
 use Livewire\Component;
+use Mary\Traits\Toast;
 
 class DealShow extends Component
 {
+    use Toast;
+
     public Deal $deal;
 
     public function mount(Deal $deal): void
     {
-        $user = auth()->user();
-
-        abort_unless($user->isJ4u() || $deal->doctor_id === $user->id, 403);
+        abort_unless(auth()->user()->isJ4u(), 403);
 
         $this->deal = $deal->load([
             'sponsor',
@@ -42,7 +43,7 @@ class DealShow extends Component
 
         $this->deal->refresh();
 
-        $this->dispatch('toast-show', slots: ['text' => 'Deal finalized — material checklist generated.'], dataset: ['variant' => 'success']);
+        $this->success(__('Deal finalized — material checklist generated.'));
     }
 
     public function markPaymentPaid(int $paymentTermId): void

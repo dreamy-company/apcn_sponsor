@@ -8,6 +8,9 @@ use App\Livewire\Dashboard;
 use App\Livewire\DealForm;
 use App\Livewire\DealList;
 use App\Livewire\DealShow;
+use App\Livewire\Doctors\DoctorForm;
+use App\Livewire\Doctors\DoctorIndex;
+use App\Livewire\Public\DoctorPortal;
 use App\Livewire\Users\UserForm;
 use App\Livewire\Users\UserIndex;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +19,9 @@ Route::get('/', function () {
     // Guests land on the login page; authenticated users go straight to the dashboard.
     return redirect()->route(auth()->check() ? 'dashboard' : 'login');
 })->name('home');
+
+// Public per-doctor portal (no auth) — gated by the global access code.
+Route::get('/d/{token}', DoctorPortal::class)->name('public.doctor');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', Dashboard::class)->name('dashboard');
@@ -40,6 +46,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/packages', CatalogPackageIndex::class)->name('catalog.packages.index');
         Route::get('/packages/create', CatalogPackageForm::class)->name('catalog.packages.create');
         Route::get('/packages/{package}/edit', CatalogPackageForm::class)->name('catalog.packages.edit');
+    });
+
+    // Doctors management (J4U-only) — non-login initiators with public links
+    Route::middleware('role:j4u')->prefix('doctors')->group(function () {
+        Route::get('/', DoctorIndex::class)->name('doctors.index');
+        Route::get('/create', DoctorForm::class)->name('doctors.create');
+        Route::get('/{doctor}/edit', DoctorForm::class)->name('doctors.edit');
     });
 
     // User management (J4U-only)

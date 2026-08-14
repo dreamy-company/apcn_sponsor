@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -20,10 +21,12 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 /**
  * @property int $id
  * @property string $name
- * @property string $email
+ * @property string|null $email
+ * @property string|null $phone
+ * @property string|null $public_token
  * @property UserRole $role
  * @property Carbon|null $email_verified_at
- * @property string $password
+ * @property string|null $password
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -31,7 +34,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'role'])]
+#[Fillable(['name', 'email', 'phone', 'public_token', 'password', 'role'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -75,6 +78,30 @@ class User extends Authenticatable implements PasskeyUser
     public function isDoctor(): bool
     {
         return $this->role === UserRole::Doctor;
+    }
+
+    /**
+     * Public read-only portal URL for a doctor (null when no share token).
+     */
+    public function publicUrl(): ?string
+    {
+        return $this->public_token ? route('public.doctor', $this->public_token) : null;
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     */
+    public function scopeDoctors($query): void
+    {
+        $query->where('role', UserRole::Doctor);
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     */
+    public function scopeAdmins($query): void
+    {
+        $query->where('role', UserRole::J4U);
     }
 
     /**

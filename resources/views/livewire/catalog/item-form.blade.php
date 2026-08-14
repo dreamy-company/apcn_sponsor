@@ -2,54 +2,43 @@
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <flux:heading size="xl">{{ $item ? __('Edit Item') : __('New Item') }}</flux:heading>
-                <flux:text class="mt-1">{{ __('An item is a single sponsorship deliverable.') }}</flux:text>
+                <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">{{ $item ? __('Edit Item') : __('New Item') }}</h1>
+                <p class="mt-1 text-base-content/60">{{ __('An item is a single sponsorship deliverable.') }}</p>
             </div>
-            <flux:button variant="ghost" href="{{ route('catalog.items.index') }}" wire:navigate>
-                {{ __('Back') }}
-            </flux:button>
+            <x-button :label="__('Back')" icon="o-arrow-left" :link="route('catalog.items.index')" class="btn-ghost" />
         </div>
 
         @if (session('status'))
-            <flux:callout variant="success" icon="check-circle">{{ session('status') }}</flux:callout>
+            <x-alert :title="session('status')" icon="o-check-circle" class="alert-success" />
         @endif
 
-        <flux:card>
+        <x-card>
             <form wire:submit="save" class="space-y-4">
-                <flux:fieldset>
-                    <flux:field>
-                        <flux:label>{{ __('Name') }}</flux:label>
-                        <flux:input wire:model="name" placeholder="{{ __('Booth 3x3m') }}" />
-                        <flux:error name="name" />
-                    </flux:field>
+                <x-input :label="__('Name')" wire:model="name" :placeholder="__('Booth 3x3m')" />
 
-                    <flux:field>
-                        <flux:label>{{ __('Type') }} <flux:text class="text-xs">({{ __('optional') }})</flux:text></flux:label>
-                        <flux:input wire:model="type" placeholder="{{ __('booth, symposium, naming, advertising, digital...') }}" />
-                        <flux:error name="type" />
-                    </flux:field>
+                <x-input
+                    :label="__('Type')"
+                    :hint="__('optional')"
+                    wire:model="type"
+                    :placeholder="__('booth, symposium, naming, advertising, digital...')"
+                />
 
-                    <flux:field>
-                        <div class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
-                            <div>
-                                <div class="text-sm font-medium">{{ __('Requires Material') }}</div>
-                                <div class="text-xs text-neutral-500">{{ __('Generates a material checklist item when a deal is finalized.') }}</div>
-                            </div>
-                            <flux:switch wire:model="requiresMaterial" />
+                <div>
+                    <div class="flex items-center justify-between gap-4 rounded-box border border-base-300 p-3">
+                        <div>
+                            <div class="text-sm font-semibold">{{ __('Requires Material') }}</div>
+                            <div class="text-xs text-base-content/50">{{ __('Generates a material checklist item when a deal is finalized.') }}</div>
                         </div>
-                        <flux:error name="requiresMaterial" />
-                    </flux:field>
-                </flux:fieldset>
+                        <x-toggle wire:model="requiresMaterial" />
+                    </div>
+                    @error('requiresMaterial') <div class="mt-1 text-error">{{ $message }}</div> @enderror
+                </div>
 
                 <div class="flex justify-end gap-3">
-                    <flux:button variant="ghost" href="{{ route('catalog.items.index') }}" wire:navigate>
-                        {{ __('Cancel') }}
-                    </flux:button>
-                    <flux:button variant="primary" type="submit">
-                        {{ $item ? __('Save Changes') : __('Create Item') }}
-                    </flux:button>
+                    <x-button :label="__('Cancel')" :link="route('catalog.items.index')" class="btn-ghost" />
+                    <x-button :label="$item ? __('Save Changes') : __('Create Item')" type="submit" class="btn-primary" spinner="save" />
                 </div>
             </form>
-        </flux:card>
+        </x-card>
     </div>
 </section>
