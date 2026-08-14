@@ -12,7 +12,10 @@ use App\Livewire\Users\UserForm;
 use App\Livewire\Users\UserIndex;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::get('/', function () {
+    // Guests land on the login page; authenticated users go straight to the dashboard.
+    return redirect()->route(auth()->check() ? 'dashboard' : 'login');
+})->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', Dashboard::class)->name('dashboard');

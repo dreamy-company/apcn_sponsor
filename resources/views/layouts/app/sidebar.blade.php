@@ -81,14 +81,6 @@
                 >
                     {{ __('Settings') }}
                 </flux:sidebar.item>
-
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank" class="text-slate-300/80! hover:bg-white/5! hover:text-white!">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank" class="text-slate-300/80! hover:bg-white/5! hover:text-white!">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
             </flux:sidebar.nav>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
