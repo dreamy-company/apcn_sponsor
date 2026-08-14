@@ -26,6 +26,11 @@
     --color-accent: var(--color-neutral-800);
     --color-accent-content: var(--color-neutral-800);
     --color-accent-foreground: var(--color-white);
+
+    /* Dark navy sidebar palette (always-on navy, independent of app theme) */
+    --color-navy-800: #1b3457;
+    --color-navy-900: #12233c;
+    --color-navy-950: #0b1626;
 }
 
 @layer theme {
@@ -64,3 +69,28 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/* ============================================================
+   Always-dark navy sidebar overrides
+   The Flux sidebar components default to light-mode colors, but
+   this app's sidebar is permanently navy — fix up its children.
+   ============================================================ */
+[data-flux-sidebar] [data-flux-sidebar-brand] > div:last-child {
+    color: #f1f5f9 !important; /* slate-100 — brand name on navy */
+}
+
+[data-flux-sidebar] [data-flux-sidebar-group] > div:first-child .text-zinc-400 {
+    color: rgb(148 163 184 / 0.7); /* slate-400/70 — group headings on navy */
+}
+
+[data-flux-sidebar] [data-flux-sidebar-collapse] svg {
+    color: #94a3b8; /* slate-400 — collapse toggle icon on navy */
+}
+
+[data-flux-sidebar] [data-flux-sidebar-profile]:hover {
+    background-color: rgb(255 255 255 / 0.05);
+}
+
+[data-flux-sidebar] [data-flux-sidebar-profile] span {
+    color: #cbd5e1 !important; /* slate-300 — user name on navy */
+}

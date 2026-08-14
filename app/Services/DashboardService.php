@@ -61,6 +61,7 @@ class DashboardService
     {
         return Deal::query()
             ->with(['sponsor', 'doctor', 'package'])
+            ->withSum(['paymentTerms as paid_total' => fn ($q) => $q->where('status', PaymentStatus::Paid)], 'amount')
             ->when($doctorId !== null, fn ($q) => $q->where('doctor_id', $doctorId))
             ->latest()
             ->limit($limit)
