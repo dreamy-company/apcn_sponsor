@@ -7,20 +7,26 @@ use App\Enums\PaymentStatus;
 use App\Models\Deal;
 use App\Models\Item;
 use App\Models\Package;
+use App\Models\Setting;
 use App\Models\Sponsor;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed default admin/doctor users, the sponsorship catalog, and one finalized example deal.
+     * Seed the admin login + non-login doctors, the sponsorship catalog, the
+     * global public access code, and one finalized example deal.
      */
     public function run(): void
     {
         $this->call(UserSeeder::class);
 
         $this->call(SponsorCatalogSeeder::class);
+
+        Setting::set('public_access_code', 'APCN2027');
+        Setting::set('report_public_token', Str::random(40));
 
         $this->seedExampleDeal();
     }
@@ -30,7 +36,7 @@ class DatabaseSeeder extends Seeder
      */
     protected function seedExampleDeal(): void
     {
-        $doctor = User::where('email', 'doctor@gmail.com')->firstOrFail();
+        $doctor = User::doctors()->orderBy('id')->firstOrFail();
         $diamond = Package::where('name', 'Diamond')->firstOrFail();
 
         $sponsor = Sponsor::create([

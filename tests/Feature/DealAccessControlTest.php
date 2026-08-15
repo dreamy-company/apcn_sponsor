@@ -17,14 +17,18 @@ class DealAccessControlTest extends TestCase
         $this->get(route('deals.create'))->assertRedirect(route('login'));
     }
 
-    public function test_doctor_cannot_access_deal_write_routes(): void
+    public function test_doctor_cannot_access_the_admin_app(): void
     {
+        // Doctors are non-login users; even if resolved into the session they
+        // are barred from every admin surface.
         $doctor = User::factory()->doctor()->create();
         $this->actingAs($doctor);
 
-        $this->get(route('deals.create'))->assertForbidden();
-
         $deal = Deal::factory()->create(['doctor_id' => $doctor->id]);
+
+        $this->get(route('deals.index'))->assertForbidden();
+        $this->get(route('deals.show', $deal))->assertForbidden();
+        $this->get(route('deals.create'))->assertForbidden();
         $this->get(route('deals.edit', $deal))->assertForbidden();
     }
 
@@ -39,37 +43,22 @@ class DealAccessControlTest extends TestCase
         $this->get(route('deals.edit', $deal))->assertOk();
     }
 
-    public function test_doctor_only_sees_own_deals_in_the_list(): void
+    public function test_j4u_sees_all_deals_in_the_list(): void
     {
-        $doctor = User::factory()->doctor()->create();
-        $this->actingAs($doctor);
+        $this->actingAs(User::factory()->j4u()->create());
 
-        $mine = Deal::factory()->create(['doctor_id' => $doctor->id]);
-        $theirs = Deal::factory()->create();
+        $a = Deal::factory()->create();
+        $b = Deal::factory()->create();
 
         $this->get(route('deals.index'))
             ->assertOk()
-            ->assertSee($mine->deal_number)
-            ->assertDontSee($theirs->deal_number);
-    }
-
-    public function test_doctor_can_view_own_deal_but_not_another_doctors_deal(): void
-    {
-        $doctor = User::factory()->doctor()->create();
-        $otherDoctor = User::factory()->doctor()->create();
-        $this->actingAs($doctor);
-
-        $mine = Deal::factory()->create(['doctor_id' => $doctor->id]);
-        $theirs = Deal::factory()->create(['doctor_id' => $otherDoctor->id]);
-
-        $this->get(route('deals.show', $mine))->assertOk();
-        $this->get(route('deals.show', $theirs))->assertForbidden();
+            ->assertSee($a->deal_number)
+            ->assertSee($b->deal_number);
     }
 
     public function test_j4u_can_view_any_deal(): void
     {
-        $j4u = User::factory()->j4u()->create();
-        $this->actingAs($j4u);
+        $this->actingAs(User::factory()->j4u()->create());
 
         $deal = Deal::factory()->create();
 

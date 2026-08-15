@@ -14,6 +14,7 @@ class CreatePackageAction
             $package = Package::create([
                 'name' => $data->name,
                 'default_price' => $data->defaultPrice,
+                'quota' => $data->quota,
             ]);
 
             $package->items()->sync($data->itemIds);

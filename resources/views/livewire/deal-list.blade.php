@@ -2,72 +2,68 @@
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <flux:heading size="xl">{{ __('Deals') }}</flux:heading>
-                <flux:text class="mt-1">{{ __('All sponsorship deals, centrally tracked.') }}</flux:text>
+                <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">{{ __('Deals') }}</h1>
+                <p class="mt-1 text-base-content/60">{{ __('All sponsorship deals, centrally tracked.') }}</p>
             </div>
             @if (auth()->user()->isJ4u())
-                <flux:button href="{{ route('deals.create') }}" wire:navigate icon="plus">
-                    {{ __('New Deal') }}
-                </flux:button>
+                <x-button :label="__('New Deal')" icon="o-plus" :link="route('deals.create')" class="btn-primary" />
             @endif
         </div>
 
-        <flux:card class="space-y-4">
+        <x-card>
             <div class="flex flex-col gap-3 sm:flex-row">
-                <flux:input
+                <x-input
                     wire:model.live.debounce.300ms="search"
-                    icon="magnifying-glass"
-                    placeholder="{{ __('Search sponsor...') }}"
+                    icon="o-magnifying-glass"
+                    :placeholder="__('Search sponsor...')"
                     class="max-w-sm"
                 />
-                <flux:select wire:model.live="status" class="w-48">
-                    <option value="">{{ __('All statuses') }}</option>
-                    @foreach ($statuses as $status)
-                        <option value="{{ $status->value }}">{{ $status->label() }}</option>
-                    @endforeach
-                </flux:select>
+                <x-select
+                    wire:model.live="status"
+                    class="w-48"
+                    :options="collect($statuses)->map(fn ($s) => ['id' => $s->value, 'name' => $s->label()])"
+                    option-value="id"
+                    option-label="name"
+                    :placeholder="__('All statuses')"
+                />
             </div>
 
-            <flux:table>
-                <flux:table.columns>
-                    <flux:table.column>{{ __('Deal #') }}</flux:table.column>
-                    <flux:table.column>{{ __('Sponsor') }}</flux:table.column>
-                    <flux:table.column>{{ __('Doctor') }}</flux:table.column>
-                    <flux:table.column>{{ __('Package') }}</flux:table.column>
-                    <flux:table.column>{{ __('Final Price') }}</flux:table.column>
-                    <flux:table.column>{{ __('Status') }}</flux:table.column>
-                </flux:table.columns>
-
-                <flux:table.rows>
-                    @forelse ($deals as $deal)
-                        <flux:table.row :key="$deal->id">
-                            <flux:table.cell class="font-medium">
-                                <flux:link href="{{ route('deals.show', $deal) }}" wire:navigate>
-                                    {{ $deal->deal_number }}
-                                </flux:link>
-                            </flux:table.cell>
-                            <flux:table.cell>{{ $deal->sponsor->company_name }}</flux:table.cell>
-                            <flux:table.cell>{{ $deal->doctor->name }}</flux:table.cell>
-                            <flux:table.cell>{{ $deal->package?->name ?? '—' }}</flux:table.cell>
-                            <flux:table.cell>Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</flux:table.cell>
-                            <flux:table.cell>
-                                <flux:badge
-                                    :color="$deal->status === \App\Enums\DealStatus::Finalized ? 'emerald' : 'zinc'"
-                                    inset="top bottom"
-                                >
-                                    {{ $deal->status->label() }}
-                                </flux:badge>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="6" class="text-center text-neutral-500">
-                                {{ __('No deals found.') }}
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-        </flux:card>
+            <div class="mt-4 overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('Deal #') }}</th>
+                            <th>{{ __('Sponsor') }}</th>
+                            <th>{{ __('Doctor') }}</th>
+                            <th>{{ __('Level') }}</th>
+                            <th>{{ __('Final Price') }}</th>
+                            <th>{{ __('Status') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($deals as $deal)
+                            <tr wire:key="{{ $deal->id }}">
+                                <td class="font-semibold">
+                                    <a href="{{ route('deals.show', $deal) }}" wire:navigate class="link link-primary">{{ $deal->deal_number }}</a>
+                                </td>
+                                <td>{{ $deal->sponsor->company_name }}</td>
+                                <td>{{ $deal->doctor->name }}</td>
+                                <td><x-tier-badge :package="$deal->package" /></td>
+                                <td>Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</td>
+                                <td>
+                                    <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">
+                                        {{ $deal->status->label() }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center text-base-content/50">{{ __('No deals found.') }}</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
     </div>
 </section>

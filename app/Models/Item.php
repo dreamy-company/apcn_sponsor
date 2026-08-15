@@ -15,11 +15,12 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $name
  * @property string|null $type
+ * @property int|null $quota
  * @property bool $requires_material
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'type', 'requires_material'])]
+#[Fillable(['name', 'type', 'quota', 'requires_material'])]
 class Item extends Model
 {
     /** @use HasFactory<ItemFactory> */
@@ -49,6 +50,7 @@ class Item extends Model
     protected function casts(): array
     {
         return [
+            'quota' => 'integer',
             'requires_material' => 'boolean',
         ];
     }

@@ -38,22 +38,6 @@ class DashboardStatsTest extends TestCase
             ->assertSee('300.000.000');
     }
 
-    public function test_doctor_dashboard_is_scoped_to_their_own_deals(): void
-    {
-        $doctor = User::factory()->doctor()->create();
-        $this->actingAs($doctor);
-
-        $mine = Deal::factory()->finalized()->create(['doctor_id' => $doctor->id, 'final_price' => 100_000_000]);
-        $theirs = Deal::factory()->finalized()->create(['doctor_id' => User::factory()->doctor()->create()->id, 'final_price' => 999_000_000]);
-
-        $this->get(route('dashboard'))
-            ->assertOk()
-            ->assertSee($mine->deal_number)
-            ->assertDontSee($theirs->deal_number)
-            ->assertSee('100.000.000')
-            ->assertDontSee('999.000.000');
-    }
-
     public function test_dashboard_shows_payment_and_material_progress(): void
     {
         $j4u = User::factory()->j4u()->create();
@@ -79,8 +63,7 @@ class DashboardStatsTest extends TestCase
 
     public function test_dashboard_renders_with_zero_deals(): void
     {
-        $doctor = User::factory()->doctor()->create();
-        $this->actingAs($doctor);
+        $this->actingAs(User::factory()->j4u()->create());
 
         $this->get(route('dashboard'))
             ->assertOk()

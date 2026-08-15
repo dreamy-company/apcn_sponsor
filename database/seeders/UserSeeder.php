@@ -9,36 +9,38 @@ use Illuminate\Database\Seeder;
 class UserSeeder extends Seeder
 {
     /**
-     * Seed the default accounts: an admin (J4U) and a doctor.
+     * Seed the login admin (J4U) and a few non-login doctors.
      *
      * Idempotent — re-running `db:seed` updates instead of duplicating.
-     * Login: admin@gmail.com / doctor@gmail.com, password: password
+     * Admin login: admin@gmail.com / password. Doctors do not log in; they are
+     * reached through their public link (see the Doctors admin page).
      */
     public function run(): void
     {
-        $users = [
+        User::updateOrCreate(
+            ['email' => 'admin@gmail.com'],
             [
                 'name' => 'Admin',
-                'email' => 'admin@gmail.com',
                 'password' => 'password',
                 'role' => UserRole::J4U,
-            ],
-            [
-                'name' => 'Doctor',
-                'email' => 'doctor@gmail.com',
-                'password' => 'password',
-                'role' => UserRole::Doctor,
-            ],
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $doctors = [
+            ['name' => 'Dr. Budi Santoso', 'phone' => '+62 812 1000 2000', 'public_token' => 'demo-doctor-budi'],
+            ['name' => 'Dr. Sari Lestari', 'phone' => '+62 813 3000 4000', 'public_token' => 'demo-doctor-sari'],
         ];
 
-        foreach ($users as $user) {
+        foreach ($doctors as $doctor) {
             User::updateOrCreate(
-                ['email' => $user['email']],
+                ['public_token' => $doctor['public_token']],
                 [
-                    'name' => $user['name'],
-                    'password' => $user['password'],
-                    'role' => $user['role'],
-                    'email_verified_at' => now(),
+                    'name' => $doctor['name'],
+                    'phone' => $doctor['phone'],
+                    'role' => UserRole::Doctor,
+                    'email' => null,
+                    'password' => null,
                 ]
             );
         }

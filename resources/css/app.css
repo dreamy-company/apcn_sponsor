@@ -1,96 +1,295 @@
+/* ============================================================================
+   APCN 2027 — Design System
+   Single source of truth for the visual language (see the design-system doc).
+   Stack: Tailwind v4 (CSS-first) + daisyUI v5 + Mary UI.
+   Rule zero: no hardcoded hex in Blade/JS — everything flows through a token.
+   ============================================================================ */
+
 @import 'tailwindcss';
-@import '../../vendor/livewire/flux/dist/flux.css';
+
+@plugin 'daisyui' {
+    themes: light --default, dark --prefersdark;
+}
 
 @source '../views';
+@source '../../vendor/robsontenorio/mary/src/View/Components/**/*.php';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
-@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
 
+/* Tailwind's `dark:` variant follows the `.dark` class that Mary's theme
+   toggle sets alongside `data-theme` (dual-signal theming). */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ----------------------------------------------------------------------------
+   1. daisyUI themes — LIGHT (warm cream, brand default)
+   Authoritative palette from the design-system doc §2.5.
+   ---------------------------------------------------------------------------- */
+@plugin 'daisyui/theme' {
+    name: 'light';
+    default: true;
+    color-scheme: light;
+
+    --color-base-100: #ffffff;   /* cards */
+    --color-base-200: #f9f8f6;   /* page — warm cream */
+    --color-base-300: #e5e4de;   /* borders — warm hairline */
+    --color-base-content: #0b253e; /* ink — navy, 14.67:1 on cream */
+
+    --color-primary: #2d6a6f;    /* teal — interactive */
+    --color-primary-content: #ffffff;
+    --color-secondary: #14405e;
+    --color-secondary-content: #ffffff;
+    --color-accent: #9c640b;     /* gold as TEXT on cream (deepened, ≥4.5:1) */
+    --color-accent-content: #ffffff;
+    --color-neutral: #061e3a;    /* deep navy */
+    --color-neutral-content: #f1f5f9;
+
+    --color-info: #2e6ea8;
+    --color-info-content: #ffffff;
+    --color-success: #3d7a4a;
+    --color-success-content: #ffffff;
+    --color-warning: #b0521a;    /* burnt orange — kept clear of the gold accent */
+    --color-warning-content: #ffffff;
+    --color-error: #a63a3f;
+    --color-error-content: #ffffff;
+
+    /* Theme-aware soft state tints (doc §2.4) — referenced by *-soft utilities */
+    --apcn-info-soft: #e7eef6;
+    --apcn-success-soft: #e9f1eb;
+    --apcn-warning-soft: #f8efe3;
+    --apcn-error-soft: #f6e9e8;
+    --apcn-primary-soft: #e7efee; /* mint — welcome-card wash */
+
+    --radius-selector: 0.5rem;
+    --radius-field: 0.875rem;
+    --radius-box: 1.25rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   1b. daisyUI themes — DARK (navy family, doc §2.5)
+   Every base kept in the navy family; each hue lifted to clear 4.5:1.
+   ---------------------------------------------------------------------------- */
+@plugin 'daisyui/theme' {
+    name: 'dark';
+    prefersdark: false;
+    color-scheme: dark;
+
+    --color-base-100: #0c2742;   /* cards */
+    --color-base-200: #08203a;   /* page */
+    --color-base-300: #16395a;   /* borders */
+    --color-base-content: #e8eef3;
+
+    --color-primary: #4fa3a6;
+    --color-primary-content: #06202f;
+    --color-secondary: #7fa8c9;
+    --color-secondary-content: #06202f;
+    --color-accent: #e8a33d;
+    --color-accent-content: #06202f;
+    --color-neutral: #24507a;    /* NB: not the chrome navy */
+    --color-neutral-content: #eaf1f7;
+
+    --color-info: #5aa0d8;
+    --color-info-content: #06202f;
+    --color-success: #63b074;
+    --color-success-content: #06202f;
+    --color-warning: #d98a4f;
+    --color-warning-content: #06202f;
+    --color-error: #d1727a;
+    --color-error-content: #06202f;
+
+    --apcn-info-soft: #142838;
+    --apcn-success-soft: #16281c;
+    --apcn-warning-soft: #2c2114;
+    --apcn-error-soft: #2c1b1a;
+    --apcn-primary-soft: #123536;
+
+    --radius-selector: 0.5rem;
+    --radius-field: 0.875rem;
+    --radius-box: 1.25rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   2. Tailwind design tokens (@theme) — brand ramp, gold, ink, shadows, font
+   Generates utilities: bg-brand, text-gold, shadow-soft, font-sans, …
+   ---------------------------------------------------------------------------- */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
-    --color-zinc-50: #fafafa;
-    --color-zinc-100: #f5f5f5;
-    --color-zinc-200: #e5e5e5;
-    --color-zinc-300: #d4d4d4;
-    --color-zinc-400: #a3a3a3;
-    --color-zinc-500: #737373;
-    --color-zinc-600: #525252;
-    --color-zinc-700: #404040;
-    --color-zinc-800: #262626;
-    --color-zinc-900: #171717;
-    --color-zinc-950: #0a0a0a;
+    /* Brand ramp (doc §2.1) */
+    --color-brand: #2d6a6f;         /* teal == primary */
+    --color-brand-light: #3e8a8e;
+    --color-brand-lighter: #a9cccc;
+    --color-brand-hover: #235358;   /* primary button hover */
+    --color-brand-soft: #e7efee;    /* mint */
+    --color-brand-deep: #061e3a;    /* deep navy — chrome */
+    --color-brand-amber: #dd9123;   /* gold */
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
-    --color-accent-foreground: var(--color-white);
+    /* Gold — two-slot rule (doc §2.2) */
+    --color-gold: #dd9123;          /* saturated FILL — pair with text-neutral */
+    --color-gold-soft: #fbf1e0;
 
-    /* Dark navy sidebar palette (always-on navy, independent of app theme) */
-    --color-navy-800: #1b3457;
-    --color-navy-900: #12233c;
-    --color-navy-950: #0b1626;
+    /* Ink & surface (doc §2.3) */
+    --color-ink: #0b253e;
+    --color-ink-soft: #55677a;
+    --color-ink-faint: #8a9aaa;
+    --color-field: #f1f4f3;
+    --color-line: #e5e4de;
+    --color-line-strong: #d4d2ca;
+
+    /* Shadows (doc §5) */
+    --shadow-soft: 0 4px 14px -8px rgb(6 30 58 / 0.22);
+    --shadow-soft-lg: 0 10px 32px -12px rgb(6 30 58 / 0.28);
+    --shadow-glow: 0 8px 18px -8px rgb(45 106 111 / 0.35); /* teal CTA glow */
 }
 
-@layer theme {
-    .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+/* Soft state tints exposed as themeable utilities (bg-info-soft, …).
+   `inline` keeps the utility referencing the var so it follows the theme. */
+@theme inline {
+    --color-info-soft: var(--apcn-info-soft);
+    --color-success-soft: var(--apcn-success-soft);
+    --color-warning-soft: var(--apcn-warning-soft);
+    --color-error-soft: var(--apcn-error-soft);
+    --color-primary-soft: var(--apcn-primary-soft);
+}
+
+/* Gradients (doc §3) — same in both themes; carry white / gold-on-navy only */
+:root {
+    --gradient-brand: linear-gradient(120deg, #0b2c42 0%, #1b5560 55%, #2d6a6f 100%);
+    --gradient-brand-deep: linear-gradient(115deg, #061e3a, #103b52);
+    --gradient-splash: linear-gradient(165deg, #12505a 0%, #0b2c42 45%, #061e3a 100%);
+}
+
+/* ----------------------------------------------------------------------------
+   3. Component layer — the prototype look
+   Pill buttons/badges, teal CTA glow, bordered cards, uppercase table caps.
+   ---------------------------------------------------------------------------- */
+@layer components {
+    /* Signature shape: fully-round buttons, badges, chips, pills, avatars */
+    .btn,
+    .badge {
+        border-radius: 9999px;
+    }
+
+    .btn {
+        font-weight: 700;
+    }
+
+    /* Primary CTA carries the teal glow + a stated hover */
+    .btn-primary {
+        box-shadow: var(--shadow-glow);
+    }
+
+    .btn-primary:hover {
+        background-color: var(--color-brand-hover);
+        border-color: var(--color-brand-hover);
+    }
+
+    /* Variants opt out of the glow */
+    .btn-outline,
+    .btn-ghost,
+    .btn-link {
+        box-shadow: none;
+    }
+
+    /* Cards lift off the cream page with a hairline + soft shadow */
+    .card {
+        border: 1px solid var(--color-base-300);
+        box-shadow: var(--shadow-soft);
+    }
+
+    /* Table headers → uppercase micro-caps (doc §4) */
+    .table thead th {
+        font-size: 0.6875rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 800;
+    }
+
+    /* Gradient surfaces */
+    .bg-gradient-brand {
+        background-image: var(--gradient-brand);
+    }
+    .bg-gradient-brand-deep {
+        background-image: var(--gradient-brand-deep);
+    }
+    .bg-gradient-splash {
+        background-image: var(--gradient-splash);
+    }
+
+    /* Eyebrow / kicker label (doc §4) */
+    .eyebrow {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
     }
 }
 
-@layer base {
+/* ----------------------------------------------------------------------------
+   4. Chrome — deep navy in BOTH themes (doc §6)
+   Sidebar, topbar and mobile navbar do not follow the theme tokens.
+   ---------------------------------------------------------------------------- */
+@layer components {
+    .apcn-topbar {
+        background-color: var(--color-brand-deep);
+        color: #e8eef3;
+        border-color: rgb(255 255 255 / 0.10);
+    }
 
-    *,
-    ::after,
-    ::before,
-    ::backdrop,
-    ::file-selector-button {
-        border-color: var(--color-gray-200, currentColor);
+    .apcn-sidebar {
+        background-color: var(--color-brand-deep);
+        color: rgb(226 232 240 / 0.75); /* slate-200/75 */
+    }
+
+    /* Sidebar menu items → pills; teal-tinted hover; primary active pill */
+    .apcn-sidebar .menu :where(li > a, li > button, li > details > summary) {
+        border-radius: 9999px;
+        color: rgb(226 232 240 / 0.75);
+    }
+    .apcn-sidebar .menu :where(li > a, li > button):hover,
+    .apcn-sidebar .menu :where(li > details > summary):hover {
+        background-color: rgb(255 255 255 / 0.08);
+        color: #ffffff;
+    }
+    .apcn-sidebar .menu :where(li > a.active, li > a.mary-active-menu) {
+        background-color: var(--color-primary);
+        color: var(--color-primary-content);
+    }
+    .apcn-sidebar .menu-title,
+    .apcn-sidebar .mary-menu-title {
+        color: rgb(148 163 184 / 0.7); /* slate-400/70 group headings */
     }
 }
 
-[data-flux-field]:not(ui-radio, ui-checkbox) {
-    @apply grid gap-2;
+/* ----------------------------------------------------------------------------
+   5. Unlayered chrome override (doc §6 — keep OUTSIDE @layer components)
+   Any light surface rendered INSIDE a navy bar (dropdown menus, modals,
+   popovers) must reclaim the theme's base-content so text isn't white-on-white.
+   ---------------------------------------------------------------------------- */
+/* Mary's dropdown only adds `.dropdown-content` when `no-x-anchor` is set; the
+   default (x-anchor) dropdown is a bare `details.dropdown > ul.menu`. Target both
+   so menu items don't inherit the navy bar's light text on their light panel. */
+.apcn-topbar .dropdown-content,
+.apcn-topbar .menu.dropdown-content,
+.apcn-topbar details.dropdown > ul,
+.apcn-sidebar .dropdown-content,
+.apcn-sidebar details.dropdown > ul {
+    color: var(--color-base-content);
+    background-color: var(--color-base-100);
 }
-
-[data-flux-label] {
-    @apply  !mb-0 !leading-tight;
-}
-
-input:focus[data-flux-control],
-textarea:focus[data-flux-control],
-select:focus[data-flux-control] {
-    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
-}
-
-/* \[:where(&)\]:size-4 {
-    @apply size-4;
-} */
-
-/* ============================================================
-   Always-dark navy sidebar overrides
-   The Flux sidebar components default to light-mode colors, but
-   this app's sidebar is permanently navy — fix up its children.
-   ============================================================ */
-[data-flux-sidebar] [data-flux-sidebar-brand] > div:last-child {
-    color: #f1f5f9 !important; /* slate-100 — brand name on navy */
-}
-
-[data-flux-sidebar] [data-flux-sidebar-group] > div:first-child .text-zinc-400 {
-    color: rgb(148 163 184 / 0.7); /* slate-400/70 — group headings on navy */
-}
-
-[data-flux-sidebar] [data-flux-sidebar-collapse] svg {
-    color: #94a3b8; /* slate-400 — collapse toggle icon on navy */
-}
-
-[data-flux-sidebar] [data-flux-sidebar-profile]:hover {
-    background-color: rgb(255 255 255 / 0.05);
-}
-
-[data-flux-sidebar] [data-flux-sidebar-profile] span {
-    color: #cbd5e1 !important; /* slate-300 — user name on navy */
+.apcn-topbar .dropdown-content :where(a, button, .menu-title),
+.apcn-topbar details.dropdown > ul :where(a, button, .menu-title),
+.apcn-sidebar .dropdown-content :where(a, button, .menu-title),
+.apcn-sidebar details.dropdown > ul :where(a, button, .menu-title) {
+    color: var(--color-base-content);
+    border-radius: 9999px;
 }

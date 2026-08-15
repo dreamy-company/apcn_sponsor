@@ -20,6 +20,8 @@ class CatalogPackageForm extends Component
 
     public string $defaultPrice = '';
 
+    public ?int $quota = null;
+
     /** @var list<int> */
     public array $selectedItems = [];
 
@@ -34,6 +36,7 @@ class CatalogPackageForm extends Component
 
             $this->name = $package->name;
             $this->defaultPrice = $package->default_price;
+            $this->quota = $package->quota;
             $this->selectedItems = array_values($package->items->pluck('id')->all());
         }
     }
@@ -45,6 +48,7 @@ class CatalogPackageForm extends Component
         $data = new PackageData(
             name: $validated['name'],
             defaultPrice: $validated['defaultPrice'],
+            quota: $validated['quota'] !== null && $validated['quota'] !== '' ? (int) $validated['quota'] : null,
             itemIds: array_values(collect($this->selectedItems)->map(fn (mixed $id): int => (int) $id)->all()),
         );
 
@@ -72,6 +76,7 @@ class CatalogPackageForm extends Component
         return [
             'name' => ['required', 'string', 'max:255'],
             'defaultPrice' => ['required', 'numeric', 'min:0'],
+            'quota' => ['nullable', 'integer', 'min:0'],
             'selectedItems' => ['array'],
             'selectedItems.*' => ['integer', Rule::exists('items', 'id')],
         ];

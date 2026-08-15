@@ -14,6 +14,7 @@ class UpdatePackageAction
             $package->update([
                 'name' => $data->name,
                 'default_price' => $data->defaultPrice,
+                'quota' => $data->quota,
             ]);
 
             $package->items()->sync($data->itemIds);

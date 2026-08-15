@@ -1,0 +1,23 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('deal_assets', function (Blueprint $table): void {
+            // Optional friendly name for the asset. NULL = use the original filename.
+            $table->string('name')->nullable()->after('original_name');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('deal_assets', function (Blueprint $table): void {
+            $table->dropColumn('name');
+        });
+    }
+};

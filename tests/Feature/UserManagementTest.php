@@ -3,10 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
-use App\Livewire\DealForm;
 use App\Livewire\Users\UserForm;
 use App\Livewire\Users\UserIndex;
-use App\Models\Deal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -24,142 +22,123 @@ class UserManagementTest extends TestCase
 
     public function test_doctors_cannot_access_user_management(): void
     {
-        $doctor = User::factory()->doctor()->create();
-        $this->actingAs($doctor);
+        $this->actingAs(User::factory()->doctor()->create());
 
-        $user = User::factory()->doctor()->create();
+        $admin = User::factory()->j4u()->create();
 
         $this->get(route('users.index'))->assertForbidden();
         $this->get(route('users.create'))->assertForbidden();
-        $this->get(route('users.edit', $user))->assertForbidden();
+        $this->get(route('users.edit', $admin))->assertForbidden();
     }
 
     public function test_j4u_can_access_user_management(): void
     {
-        $j4u = User::factory()->j4u()->create();
-        $this->actingAs($j4u);
+        $this->actingAs(User::factory()->j4u()->create());
 
-        $user = User::factory()->doctor()->create();
+        $admin = User::factory()->j4u()->create();
 
         $this->get(route('users.index'))->assertOk();
         $this->get(route('users.create'))->assertOk();
-        $this->get(route('users.edit', $user))->assertOk();
+        $this->get(route('users.edit', $admin))->assertOk();
     }
 
-    public function test_j4u_can_create_a_doctor_user(): void
+    public function test_editing_a_doctor_via_users_route_is_not_found(): void
+    {
+        $this->actingAs(User::factory()->j4u()->create());
+
+        $doctor = User::factory()->doctor()->create();
+
+        $this->get(route('users.edit', $doctor))->assertNotFound();
+    }
+
+    public function test_j4u_can_create_an_administrator(): void
     {
         $this->actingAs(User::factory()->j4u()->create());
 
         Livewire::test(UserForm::class)
-            ->set('name', 'Dr. Budi Santoso')
-            ->set('email', 'budi@example.com')
-            ->set('role', UserRole::Doctor->value)
+            ->set('name', 'Committee Member')
+            ->set('email', 'member@example.com')
             ->set('password', 'secretpass123')
             ->set('passwordConfirmation', 'secretpass123')
             ->call('save');
 
         $this->assertDatabaseHas('users', [
-            'name' => 'Dr. Budi Santoso',
-            'email' => 'budi@example.com',
-            'role' => UserRole::Doctor->value,
+            'name' => 'Committee Member',
+            'email' => 'member@example.com',
+            'role' => UserRole::J4U->value,
         ]);
 
         // Admin-provisioned accounts are auto-verified so they can log in.
-        $this->assertNotNull(User::where('email', 'budi@example.com')->first()->email_verified_at);
-
-        // The new doctor is available as an initiator on the deal form.
-        Livewire::test(DealForm::class)
-            ->assertViewHas('doctors', fn ($doctors) => $doctors->contains('email', 'budi@example.com'));
+        $this->assertNotNull(User::where('email', 'member@example.com')->first()->email_verified_at);
     }
 
-    public function test_j4u_can_edit_a_user_and_change_role(): void
+    public function test_j4u_can_edit_an_administrator(): void
     {
         $this->actingAs(User::factory()->j4u()->create());
 
-        $user = User::factory()->doctor()->create(['name' => 'Dr. Lama', 'email' => 'lama@example.com']);
+        $admin = User::factory()->j4u()->create(['name' => 'Old Name', 'email' => 'old@example.com']);
 
-        Livewire::test(UserForm::class, ['user' => $user])
-            ->set('name', 'Dr. Baru')
-            ->set('email', 'baru@example.com')
-            ->set('role', UserRole::J4U->value)
+        Livewire::test(UserForm::class, ['user' => $admin])
+            ->set('name', 'New Name')
+            ->set('email', 'new@example.com')
             ->set('password', '')
             ->set('passwordConfirmation', '')
             ->call('save');
 
-        $user->refresh();
+        $admin->refresh();
 
-        $this->assertSame('Dr. Baru', $user->name);
-        $this->assertSame('baru@example.com', $user->email);
-        $this->assertSame(UserRole::J4U, $user->role);
+        $this->assertSame('New Name', $admin->name);
+        $this->assertSame('new@example.com', $admin->email);
         // Blank password on edit keeps the existing password.
-        $this->assertTrue(Hash::check('password', $user->password));
+        $this->assertTrue(Hash::check('password', $admin->password));
     }
 
-    public function test_j4u_can_reset_a_users_password(): void
+    public function test_j4u_can_reset_an_administrator_password(): void
     {
         $this->actingAs(User::factory()->j4u()->create());
 
-        $user = User::factory()->doctor()->create();
+        $admin = User::factory()->j4u()->create();
 
-        Livewire::test(UserForm::class, ['user' => $user])
-            ->set('name', $user->name)
-            ->set('email', $user->email)
-            ->set('role', UserRole::Doctor->value)
+        Livewire::test(UserForm::class, ['user' => $admin])
+            ->set('name', $admin->name)
+            ->set('email', $admin->email)
             ->set('password', 'newsecret123')
             ->set('passwordConfirmation', 'newsecret123')
             ->call('save');
 
-        $this->assertTrue(Hash::check('newsecret123', $user->fresh()->password));
+        $this->assertTrue(Hash::check('newsecret123', $admin->fresh()->password));
     }
 
     public function test_email_must_be_unique(): void
     {
         $this->actingAs(User::factory()->j4u()->create());
 
-        User::factory()->doctor()->create(['email' => 'taken@example.com']);
+        User::factory()->j4u()->create(['email' => 'taken@example.com']);
 
         Livewire::test(UserForm::class)
-            ->set('name', 'Dr. X')
+            ->set('name', 'Someone')
             ->set('email', 'taken@example.com')
-            ->set('role', UserRole::Doctor->value)
             ->set('password', 'secretpass123')
             ->set('passwordConfirmation', 'secretpass123')
             ->call('save')
             ->assertHasErrors(['email' => 'unique']);
 
-        $this->assertDatabaseCount('users', 2); // j4u + existing doctor
+        $this->assertDatabaseCount('users', 2); // acting admin + existing admin
     }
 
     public function test_password_validation_on_create(): void
     {
         $this->actingAs(User::factory()->j4u()->create());
 
-        // Too short + mismatch.
         Livewire::test(UserForm::class)
-            ->set('name', 'Dr. X')
+            ->set('name', 'Someone')
             ->set('email', 'x@example.com')
-            ->set('role', UserRole::Doctor->value)
             ->set('password', 'short')
             ->set('passwordConfirmation', 'different')
             ->call('save')
             ->assertHasErrors('password');
 
         $this->assertDatabaseCount('users', 1);
-    }
-
-    public function test_j4u_cannot_change_their_own_role(): void
-    {
-        $j4u = User::factory()->j4u()->create();
-        $this->actingAs($j4u);
-
-        Livewire::test(UserForm::class, ['user' => $j4u])
-            ->set('name', $j4u->name)
-            ->set('email', $j4u->email)
-            ->set('role', UserRole::Doctor->value)
-            ->call('save')
-            ->assertHasErrors('role');
-
-        $this->assertSame(UserRole::J4U, $j4u->fresh()->role);
     }
 
     public function test_user_cannot_delete_themselves(): void
@@ -172,26 +151,25 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $j4u->id]);
     }
 
-    public function test_user_with_deals_cannot_be_deleted(): void
+    public function test_j4u_can_delete_another_administrator(): void
     {
         $this->actingAs(User::factory()->j4u()->create());
 
-        $doctor = User::factory()->doctor()->create();
-        Deal::factory()->create(['doctor_id' => $doctor->id]);
+        $other = User::factory()->j4u()->create();
 
-        Livewire::test(UserIndex::class)->call('delete', $doctor->id);
+        Livewire::test(UserIndex::class)->call('delete', $other->id);
 
-        $this->assertDatabaseHas('users', ['id' => $doctor->id]);
+        $this->assertDatabaseMissing('users', ['id' => $other->id]);
     }
 
-    public function test_user_without_deals_can_be_deleted(): void
+    public function test_user_index_only_lists_administrators(): void
     {
-        $this->actingAs(User::factory()->j4u()->create());
+        $this->actingAs(User::factory()->j4u()->create(['name' => 'Admin Alice']));
 
-        $doctor = User::factory()->doctor()->create();
+        $doctor = User::factory()->doctor()->create(['name' => 'Dr Bob']);
 
-        Livewire::test(UserIndex::class)->call('delete', $doctor->id);
-
-        $this->assertDatabaseMissing('users', ['id' => $doctor->id]);
+        Livewire::test(UserIndex::class)
+            ->assertSee('Admin Alice')
+            ->assertDontSee('Dr Bob');
     }
 }

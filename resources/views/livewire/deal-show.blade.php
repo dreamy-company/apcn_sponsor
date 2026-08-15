@@ -2,233 +2,334 @@
     <div class="space-y-6">
         {{-- Header --}}
         <div class="flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <flux:heading size="xl">{{ $deal->deal_number }}</flux:heading>
-                <flux:badge
-                    :color="$deal->status === \App\Enums\DealStatus::Finalized ? 'emerald' : 'zinc'"
-                    inset="top bottom"
-                >
+            <div class="flex flex-wrap items-center gap-3">
+                <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">{{ $deal->deal_number }}</h1>
+                <x-tier-badge :package="$deal->package" size="lg" />
+                <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">
                     {{ $deal->status->label() }}
-                </flux:badge>
+                </span>
             </div>
 
             <div class="flex gap-3">
-                <flux:button variant="ghost" href="{{ route('deals.index') }}" wire:navigate>
-                    {{ __('Back') }}
-                </flux:button>
+                <x-button :label="__('Back')" icon="o-arrow-left" :link="route('deals.index')" class="btn-ghost" />
 
                 @if (auth()->user()->isJ4u() && $deal->status === \App\Enums\DealStatus::Draft)
-                    <flux:button variant="ghost" href="{{ route('deals.edit', $deal) }}" wire:navigate icon="pencil">
-                        {{ __('Edit') }}
-                    </flux:button>
-                    <flux:button variant="primary" wire:click="finalize" wire:confirm="{{ __('Finalize this deal? The material checklist will be generated.') }}">
-                        {{ __('Finalize') }}
-                    </flux:button>
+                    <x-button :label="__('Edit')" icon="o-pencil" :link="route('deals.edit', $deal)" class="btn-ghost" />
+                    <x-button
+                        :label="__('Finalize')"
+                        class="btn-primary"
+                        wire:click="finalize"
+                        wire:confirm="{{ __('Finalize this deal? The material checklist will be generated.') }}"
+                    />
                 @endif
             </div>
         </div>
 
         {{-- Stats --}}
         <div class="grid gap-4 md:grid-cols-3">
-            <flux:card>
-                <flux:heading size="sm">{{ __('Final Price') }}</flux:heading>
-                <flux:heading size="2xl" class="mt-2">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</flux:heading>
-                <flux:text class="mt-1">{{ $deal->package?->name ?? __('No base package') }}</flux:text>
-            </flux:card>
+            <x-card>
+                <h3 class="eyebrow text-base-content/50">{{ __('Final Price') }}</h3>
+                <div class="mt-2 text-2xl font-extrabold">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</div>
+                <p class="mt-1 text-sm text-base-content/60">{{ $deal->package?->name ?? __('No base package') }}</p>
+            </x-card>
 
-            <flux:card>
-                <flux:heading size="sm">{{ __('Payment Progress') }}</flux:heading>
-                <flux:heading size="2xl" class="mt-2">
+            <x-card>
+                <h3 class="eyebrow text-base-content/50">{{ __('Payment Progress') }}</h3>
+                <div class="mt-2 text-2xl font-extrabold">
                     Rp {{ number_format((float) $totalPaid, 0, ',', '.') }}
-                    <span class="text-base font-normal text-neutral-500">/ Rp {{ number_format((float) $totalTerms, 0, ',', '.') }}</span>
-                </flux:heading>
-                <flux:text class="mt-1">{{ $deal->paymentTerms->where('status', \App\Enums\PaymentStatus::Paid)->count() }} / {{ $deal->paymentTerms->count() }} {{ __('terms paid') }}</flux:text>
-            </flux:card>
+                    <span class="text-base font-normal text-base-content/50">/ Rp {{ number_format((float) $totalTerms, 0, ',', '.') }}</span>
+                </div>
+                <p class="mt-1 text-sm text-base-content/60">{{ $deal->paymentTerms->where('status', \App\Enums\PaymentStatus::Paid)->count() }} / {{ $deal->paymentTerms->count() }} {{ __('terms paid') }}</p>
+            </x-card>
 
-            <flux:card>
-                <flux:heading size="sm">{{ __('Material Checklist') }}</flux:heading>
-                <flux:heading size="2xl" class="mt-2">
+            <x-card>
+                <h3 class="eyebrow text-base-content/50">{{ __('Material Checklist') }}</h3>
+                <div class="mt-2 text-2xl font-extrabold">
                     {{ $materialReceived }}
-                    <span class="text-base font-normal text-neutral-500">/ {{ $materialCount }} {{ __('received') }}</span>
-                </flux:heading>
-                <flux:text class="mt-1">
+                    <span class="text-base font-normal text-base-content/50">/ {{ $materialCount }} {{ __('received') }}</span>
+                </div>
+                <p class="mt-1 text-sm text-base-content/60">
                     {{ $materialCount === 0 ? __('No materials required.') : __('Checklist auto-generated on finalize.') }}
-                </flux:text>
-            </flux:card>
+                </p>
+            </x-card>
         </div>
 
         {{-- Deal details --}}
-        <flux:card>
-            <flux:heading size="lg">{{ __('Deal Details') }}</flux:heading>
+        <x-card>
+            <h2 class="text-lg font-extrabold">{{ __('Deal Details') }}</h2>
 
             <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                    <flux:text class="text-xs uppercase tracking-wide text-neutral-500">{{ __('Company') }}</flux:text>
-                    <div class="mt-1 text-sm font-medium">{{ $deal->sponsor->company_name }}</div>
+                    <span class="eyebrow text-base-content/50">{{ __('Company') }}</span>
+                    <div class="mt-1 text-sm font-semibold">{{ $deal->sponsor->company_name }}</div>
                 </div>
                 <div>
-                    <flux:text class="text-xs uppercase tracking-wide text-neutral-500">{{ __('PIC') }}</flux:text>
-                    <div class="mt-1 text-sm font-medium">{{ $deal->sponsor->pic_name }}</div>
-                    <div class="text-xs text-neutral-500">{{ $deal->sponsor->pic_contact }}</div>
+                    <span class="eyebrow text-base-content/50">{{ __('PIC') }}</span>
+                    <div class="mt-1 text-sm font-semibold">{{ $deal->sponsor->pic_name }}</div>
+                    <div class="text-xs text-base-content/50">{{ $deal->sponsor->pic_contact }}</div>
                 </div>
                 <div>
-                    <flux:text class="text-xs uppercase tracking-wide text-neutral-500">{{ __('Doctor (Initiator)') }}</flux:text>
-                    <div class="mt-1 text-sm font-medium">{{ $deal->doctor->name }}</div>
+                    <span class="eyebrow text-base-content/50">{{ __('Doctor (Initiator)') }}</span>
+                    <div class="mt-1 text-sm font-semibold">{{ $deal->doctor->name }}</div>
                 </div>
                 <div>
-                    <flux:text class="text-xs uppercase tracking-wide text-neutral-500">{{ __('Created') }}</flux:text>
-                    <div class="mt-1 text-sm font-medium">{{ $deal->created_at?->format('d M Y') }}</div>
+                    <span class="eyebrow text-base-content/50">{{ __('Created') }}</span>
+                    <div class="mt-1 text-sm font-semibold">{{ $deal->created_at?->format('d M Y') }}</div>
                 </div>
             </div>
-        </flux:card>
+        </x-card>
 
         {{-- Items --}}
-        <flux:card>
-            <flux:heading size="lg">{{ __('Items') }}</flux:heading>
+        <x-card>
+            <h2 class="text-lg font-extrabold">{{ __('Items') }}</h2>
 
-            <flux:table class="mt-4">
-                <flux:table.columns>
-                    <flux:table.column>{{ __('Item') }}</flux:table.column>
-                    <flux:table.column>{{ __('Type') }}</flux:table.column>
-                    <flux:table.column>{{ __('Custom Price') }}</flux:table.column>
-                </flux:table.columns>
+            <div class="mt-4 overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('Item') }}</th>
+                            <th>{{ __('Type') }}</th>
+                            <th>{{ __('Custom Price') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($deal->items as $item)
+                            <tr wire:key="item-{{ $item->id }}">
+                                <td class="font-semibold">{{ $item->name }}</td>
+                                <td>
+                                    <span class="badge badge-soft {{ $item->pivot->is_addon ? 'badge-info' : 'badge-ghost' }}">
+                                        {{ $item->pivot->is_addon ? __('Add-on') : __('Package item') }}
+                                    </span>
+                                </td>
+                                <td>{{ $item->pivot->custom_price !== null ? 'Rp '.number_format((float) $item->pivot->custom_price, 0, ',', '.') : '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="3" class="text-center text-base-content/50">{{ __('No items.') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
 
-                <flux:table.rows>
-                    @forelse ($deal->items as $item)
-                        <flux:table.row :key="$item->id">
-                            <flux:table.cell class="font-medium">{{ $item->name }}</flux:table.cell>
-                            <flux:table.cell>
-                                <flux:badge :color="$item->pivot->is_addon ? 'indigo' : 'zinc'" inset="top bottom">
-                                    {{ $item->pivot->is_addon ? __('Add-on') : __('Package item') }}
-                                </flux:badge>
-                            </flux:table.cell>
-                            <flux:table.cell>
-                                {{ $item->pivot->custom_price !== null ? 'Rp '.number_format((float) $item->pivot->custom_price, 0, ',', '.') : '—' }}
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="3" class="text-center text-neutral-500">{{ __('No items.') }}</flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-        </flux:card>
+        {{-- Assets --}}
+        <x-card>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-extrabold">{{ __('Assets') }}</h2>
+                    <p class="mt-1 text-sm text-base-content/60">{{ __('Files the sponsor will use (contracts, artwork, video). Max 50MB each.') }}</p>
+                </div>
+                @if ($deal->assets->isNotEmpty())
+                    <x-button :label="__('Download all')" icon="o-arrow-down-tray" wire:click="downloadAll" spinner="downloadAll" class="btn-outline btn-sm" />
+                @endif
+            </div>
+
+            @if (auth()->user()->isJ4u())
+                <form wire:submit="uploadAssets" class="mt-4 space-y-3">
+                    <div class="flex flex-wrap items-end gap-3">
+                        <x-file wire:model="assets" multiple class="max-w-md grow" :hint="__('Optional. Give each file a name below.')" />
+                        <x-button :label="__('Upload')" icon="o-arrow-up-tray" type="submit" class="btn-primary" spinner="uploadAssets" />
+                    </div>
+
+                    @if (! empty($assets))
+                        <div class="space-y-2 rounded-box border border-base-300 p-3">
+                            <p class="text-xs font-semibold text-base-content/60">{{ __('Name each file (optional)') }}</p>
+                            @foreach ($assets as $i => $file)
+                                <div class="flex items-center gap-3" wire:key="new-asset-{{ $i }}">
+                                    <x-input wire:model="assetNames.{{ $i }}" :placeholder="$file->getClientOriginalName()" class="grow" />
+                                    <span class="shrink-0 text-xs text-base-content/50">{{ $file->getClientOriginalName() }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @error('assets.*') <div class="mt-1 text-error">{{ $message }}</div> @enderror
+                </form>
+            @endif
+
+            <div class="mt-4 overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('File') }}</th>
+                            <th>{{ __('Size') }}</th>
+                            <th>{{ __('Uploaded') }}</th>
+                            <th>{{ __('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($deal->assets as $asset)
+                            <tr wire:key="asset-{{ $asset->id }}">
+                                <td class="font-semibold">
+                                    <button type="button" wire:click="downloadAsset({{ $asset->id }})" class="link link-primary text-start">{{ $asset->displayName() }}</button>
+                                </td>
+                                <td>{{ $asset->humanSize() }}</td>
+                                <td class="text-sm text-base-content/60">
+                                    {{ $asset->created_at?->format('d M Y') }}
+                                    @if ($asset->uploadedBy)
+                                        · {{ $asset->uploadedBy->name }}
+                                    @endif
+                                </td>
+                                <td>
+                                    <div class="flex gap-1">
+                                        <x-button icon="o-arrow-down-tray" wire:click="downloadAsset({{ $asset->id }})" class="btn-ghost btn-sm btn-square" />
+                                        @if (auth()->user()->isJ4u())
+                                            <x-button
+                                                icon="o-trash"
+                                                wire:click="deleteAsset({{ $asset->id }})"
+                                                wire:confirm="{{ __('Remove this asset?') }}"
+                                                class="btn-ghost btn-sm btn-square text-error"
+                                            />
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No assets uploaded yet.') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
 
         {{-- Payment terms --}}
-        <flux:card>
-            <flux:heading size="lg">{{ __('Payment Terms') }}</flux:heading>
+        <x-card>
+            <h2 class="text-lg font-extrabold">{{ __('Payment Terms') }}</h2>
 
-            <flux:table class="mt-4">
-                <flux:table.columns>
-                    <flux:table.column>{{ __('Description') }}</flux:table.column>
-                    <flux:table.column>{{ __('Due Date') }}</flux:table.column>
-                    <flux:table.column>{{ __('Amount') }}</flux:table.column>
-                    <flux:table.column>{{ __('Status') }}</flux:table.column>
-                </flux:table.columns>
-
-                <flux:table.rows>
-                    @forelse ($deal->paymentTerms as $term)
-                        <flux:table.row :key="$term->id">
-                            <flux:table.cell class="font-medium">{{ $term->description }}</flux:table.cell>
-                            <flux:table.cell>{{ $term->due_date->format('d M Y') }}</flux:table.cell>
-                            <flux:table.cell>Rp {{ number_format((float) $term->amount, 0, ',', '.') }}</flux:table.cell>
-                            <flux:table.cell>
-                                @if (auth()->user()->isJ4u() && $term->status === \App\Enums\PaymentStatus::Pending)
-                                    <flux:button
-                                        size="xs"
-                                        variant="subtle"
-                                        wire:click="markPaymentPaid({{ $term->id }})"
-                                        wire:confirm="{{ __('Mark this term as paid?') }}"
-                                    >
-                                        {{ __('Mark Paid') }}
-                                    </flux:button>
-                                @else
-                                    <flux:badge :color="$term->status === \App\Enums\PaymentStatus::Paid ? 'emerald' : 'zinc'" inset="top bottom">
-                                        {{ $term->status->label() }}
-                                    </flux:badge>
-                                @endif
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="4" class="text-center text-neutral-500">{{ __('No payment terms.') }}</flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-        </flux:card>
+            <div class="mt-4 overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('Description') }}</th>
+                            <th>{{ __('Due Date') }}</th>
+                            <th>{{ __('Amount') }}</th>
+                            <th>{{ __('Status') }}</th>
+                            <th>{{ __('Transfer Proof') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($deal->paymentTerms as $term)
+                            <tr wire:key="term-{{ $term->id }}">
+                                <td class="font-semibold">{{ $term->description }}</td>
+                                <td>{{ $term->due_date->format('d M Y') }}</td>
+                                <td>Rp {{ number_format((float) $term->amount, 0, ',', '.') }}</td>
+                                <td>
+                                    @if (auth()->user()->isJ4u() && $term->status === \App\Enums\PaymentStatus::Pending)
+                                        <x-button
+                                            :label="__('Mark Paid')"
+                                            class="btn-soft btn-primary btn-xs"
+                                            wire:click="markPaymentPaid({{ $term->id }})"
+                                            wire:confirm="{{ __('Mark this term as paid?') }}"
+                                        />
+                                    @else
+                                        <span class="badge badge-soft {{ $term->status === \App\Enums\PaymentStatus::Paid ? 'badge-success' : 'badge-ghost' }}">
+                                            {{ $term->status->label() }}
+                                        </span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if ($term->hasProof())
+                                        <div class="flex items-center gap-1">
+                                            <button type="button" wire:click="downloadProof({{ $term->id }})" class="link link-primary inline-flex items-center gap-1 text-sm">
+                                                <x-icon name="o-paper-clip" class="h-4 w-4" /> {{ $term->proofDownloadName() }}
+                                            </button>
+                                            <span class="text-xs text-base-content/40">{{ $term->proofHumanSize() }}</span>
+                                            @if (auth()->user()->isJ4u())
+                                                <x-button
+                                                    icon="o-trash"
+                                                    wire:click="deleteProof({{ $term->id }})"
+                                                    wire:confirm="{{ __('Remove this transfer proof?') }}"
+                                                    class="btn-ghost btn-xs btn-square text-error"
+                                                />
+                                            @endif
+                                        </div>
+                                    @elseif (auth()->user()->isJ4u())
+                                        <form wire:submit="uploadProof({{ $term->id }})" class="flex flex-wrap items-end gap-2">
+                                            <x-file wire:model="proofUploads.{{ $term->id }}" class="max-w-[11rem]" accept="image/*,application/pdf" />
+                                            <x-button :label="__('Upload')" icon="o-arrow-up-tray" type="submit" class="btn-primary btn-xs" spinner="uploadProof({{ $term->id }})" />
+                                            @error("proofUploads.{$term->id}") <div class="w-full text-xs text-error">{{ $message }}</div> @enderror
+                                        </form>
+                                    @else
+                                        <span class="text-base-content/40">—</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No payment terms.') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
 
         {{-- Material checklist --}}
-        <flux:card>
-            <flux:heading size="lg">{{ __('Material Checklist') }}</flux:heading>
+        <x-card>
+            <h2 class="text-lg font-extrabold">{{ __('Material Checklist') }}</h2>
 
-            <flux:table class="mt-4">
-                <flux:table.columns>
-                    <flux:table.column>{{ __('Material') }}</flux:table.column>
-                    <flux:table.column>{{ __('Related Item') }}</flux:table.column>
-                    <flux:table.column>{{ __('Due Date') }}</flux:table.column>
-                    <flux:table.column>{{ __('Status') }}</flux:table.column>
-                </flux:table.columns>
-
-                <flux:table.rows>
-                    @forelse ($deal->materialDeadlines as $deadline)
-                        <flux:table.row :key="$deadline->id">
-                            <flux:table.cell class="font-medium">{{ $deadline->material_name }}</flux:table.cell>
-                            <flux:table.cell>{{ $deadline->item?->name ?? '—' }}</flux:table.cell>
-                            <flux:table.cell>{{ $deadline->due_date?->format('d M Y') ?? '—' }}</flux:table.cell>
-                            <flux:table.cell>
-                                @if (auth()->user()->isJ4u() && $deadline->status === \App\Enums\MaterialStatus::Pending)
-                                    <flux:button
-                                        size="xs"
-                                        variant="subtle"
-                                        wire:click="markMaterialReceived({{ $deadline->id }})"
-                                        wire:confirm="{{ __('Mark this material as received?') }}"
-                                    >
-                                        {{ __('Mark Received') }}
-                                    </flux:button>
-                                @else
-                                    <flux:badge :color="$deadline->status === \App\Enums\MaterialStatus::Received ? 'emerald' : 'zinc'" inset="top bottom">
-                                        {{ $deadline->status->label() }}
-                                    </flux:badge>
-                                @endif
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="4" class="text-center text-neutral-500">{{ __('No materials required for this deal.') }}</flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-        </flux:card>
+            <div class="mt-4 overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('Material') }}</th>
+                            <th>{{ __('Related Item') }}</th>
+                            <th>{{ __('Due Date') }}</th>
+                            <th>{{ __('Status') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($deal->materialDeadlines as $deadline)
+                            <tr wire:key="mat-{{ $deadline->id }}">
+                                <td class="font-semibold">{{ $deadline->material_name }}</td>
+                                <td>{{ $deadline->item?->name ?? '—' }}</td>
+                                <td>{{ $deadline->due_date?->format('d M Y') ?? '—' }}</td>
+                                <td>
+                                    @if (auth()->user()->isJ4u() && $deadline->status === \App\Enums\MaterialStatus::Pending)
+                                        <x-button
+                                            :label="__('Mark Received')"
+                                            class="btn-soft btn-primary btn-xs"
+                                            wire:click="markMaterialReceived({{ $deadline->id }})"
+                                            wire:confirm="{{ __('Mark this material as received?') }}"
+                                        />
+                                    @else
+                                        <span class="badge badge-soft {{ $deadline->status === \App\Enums\MaterialStatus::Received ? 'badge-success' : 'badge-ghost' }}">
+                                            {{ $deadline->status->label() }}
+                                        </span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No materials required for this deal.') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
 
         {{-- Activity log --}}
-        <flux:card>
-            <flux:heading size="lg">{{ __('Activity Log') }}</flux:heading>
+        <x-card>
+            <h2 class="text-lg font-extrabold">{{ __('Activity Log') }}</h2>
 
             <div class="mt-4 space-y-4">
                 @forelse ($deal->activityLogs as $log)
                     <div class="flex gap-3">
-                        <div class="mt-1.5 size-2 shrink-0 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
+                        <div class="mt-1.5 size-2 shrink-0 rounded-full bg-base-300"></div>
                         <div class="min-w-0">
                             <div class="text-sm">
-                                <span class="font-medium">{{ $log->user?->name ?? __('System') }}</span>
-                                <span class="text-neutral-500">— {{ $log->action }}</span>
+                                <span class="font-semibold">{{ $log->user?->name ?? __('System') }}</span>
+                                <span class="text-base-content/50">— {{ $log->action }}</span>
                             </div>
-                            <div class="text-xs text-neutral-500">{{ $log->created_at->format('d M Y H:i') }}</div>
+                            <div class="text-xs text-base-content/50">{{ $log->created_at->format('d M Y H:i') }}</div>
 
                             @if (is_array($log->details) && isset($log->details['status']) && is_array($log->details['status']))
-                                <div class="mt-1 text-xs text-neutral-500">
+                                <div class="mt-1 text-xs text-base-content/50">
                                     status: {{ $log->details['status']['old'] }} → {{ $log->details['status']['new'] }}
                                 </div>
                             @endif
                         </div>
                     </div>
                 @empty
-                    <flux:text class="text-neutral-500">{{ __('No activity recorded yet.') }}</flux:text>
+                    <p class="text-base-content/50">{{ __('No activity recorded yet.') }}</p>
                 @endforelse
             </div>
-        </flux:card>
+        </x-card>
     </div>
 </section>

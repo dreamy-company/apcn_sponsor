@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
 
@@ -32,6 +34,25 @@ class AuthenticationTest extends TestCase
             ->assertRedirect(route('dashboard', absolute: false));
 
         $this->assertAuthenticated();
+    }
+
+    public function test_doctors_cannot_authenticate_even_with_valid_credentials(): void
+    {
+        // A doctor with real credentials must still be refused at the login form
+        // (only admins may authenticate).
+        $doctor = User::factory()->create([
+            'role' => UserRole::Doctor,
+            'email' => 'doctor-login@example.com',
+            'password' => Hash::make('password'),
+        ]);
+
+        $response = $this->post(route('login.store'), [
+            'email' => $doctor->email,
+            'password' => 'password',
+        ]);
+
+        $response->assertSessionHasErrorsIn('email');
+        $this->assertGuest();
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void

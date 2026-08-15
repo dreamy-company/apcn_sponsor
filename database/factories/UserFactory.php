@@ -31,7 +31,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'role' => UserRole::Doctor,
+            'role' => UserRole::J4U,
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
@@ -45,10 +45,17 @@ class UserFactory extends Factory
         ]);
     }
 
+    /**
+     * A non-login doctor (initiator) with a public share token, no credentials.
+     */
     public function doctor(): static
     {
         return $this->state(fn (array $attributes) => [
             'role' => UserRole::Doctor,
+            'email' => null,
+            'password' => null,
+            'phone' => fake()->phoneNumber(),
+            'public_token' => Str::random(40),
         ]);
     }
 

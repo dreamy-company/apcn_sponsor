@@ -2,49 +2,55 @@
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <flux:heading size="xl">{{ __('Packages') }}</flux:heading>
-                <flux:text class="mt-1">{{ __('Sponsorship tiers composed of catalog items.') }}</flux:text>
+                <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">{{ __('Packages') }}</h1>
+                <p class="mt-1 text-base-content/60">{{ __('Sponsorship tiers composed of catalog items.') }}</p>
             </div>
-            <flux:button href="{{ route('catalog.packages.create') }}" wire:navigate icon="plus">
-                {{ __('New Package') }}
-            </flux:button>
+            <x-button :label="__('New Package')" icon="o-plus" :link="route('catalog.packages.create')" class="btn-primary" />
         </div>
 
-        <flux:card>
-            <flux:table>
-                <flux:table.columns>
-                    <flux:table.column>{{ __('Name') }}</flux:table.column>
-                    <flux:table.column>{{ __('Default Price') }}</flux:table.column>
-                    <flux:table.column>{{ __('Items') }}</flux:table.column>
-                    <flux:table.column>{{ __('Actions') }}</flux:table.column>
-                </flux:table.columns>
-
-                <flux:table.rows>
-                    @forelse ($packages as $package)
-                        <flux:table.row :key="$package->id">
-                            <flux:table.cell class="font-medium">{{ $package->name }}</flux:table.cell>
-                            <flux:table.cell>Rp {{ number_format((float) $package->default_price, 0, ',', '.') }}</flux:table.cell>
-                            <flux:table.cell>{{ $package->items_count }} {{ __('items') }}</flux:table.cell>
-                            <flux:table.cell>
-                                <div class="flex gap-2">
-                                    <flux:button size="xs" variant="subtle" icon="pencil" :href="route('catalog.packages.edit', $package)" wire:navigate />
-                                    <flux:button
-                                        size="xs"
-                                        variant="subtle"
-                                        icon="trash"
-                                        wire:click="delete({{ $package->id }})"
-                                        wire:confirm="{{ __('Delete this package?') }}"
-                                    />
-                                </div>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="4" class="text-center text-neutral-500">{{ __('No packages yet.') }}</flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-        </flux:card>
+        <x-card>
+            <div class="overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('Name') }}</th>
+                            <th>{{ __('Default Price') }}</th>
+                            <th>{{ __('Quota') }}</th>
+                            <th>{{ __('Items') }}</th>
+                            <th>{{ __('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($packages as $package)
+                            <tr wire:key="{{ $package->id }}">
+                                <td class="font-semibold">
+                                    <a href="{{ route('catalog.packages.show', $package) }}" class="link link-primary" wire:navigate>{{ $package->name }}</a>
+                                </td>
+                                <td>Rp {{ number_format((float) $package->default_price, 0, ',', '.') }}</td>
+                                <td>
+                                    <span class="badge badge-soft {{ $package->quota !== null && $package->taken_count >= $package->quota ? 'badge-error' : 'badge-ghost' }}">
+                                        {{ $package->taken_count }} / {{ $package->quota ?? '∞' }}
+                                    </span>
+                                </td>
+                                <td>{{ $package->items_count }} {{ __('items') }}</td>
+                                <td>
+                                    <div class="flex gap-1">
+                                        <x-button icon="o-pencil" :link="route('catalog.packages.edit', $package)" class="btn-ghost btn-sm btn-square" />
+                                        <x-button
+                                            icon="o-trash"
+                                            wire:click="delete({{ $package->id }})"
+                                            wire:confirm="{{ __('Delete this package?') }}"
+                                            class="btn-ghost btn-sm btn-square text-error"
+                                        />
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No packages yet.') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
     </div>
 </section>

@@ -2,72 +2,46 @@
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <flux:heading size="xl">{{ $user ? __('Edit User') : __('New User') }}</flux:heading>
-                <flux:text class="mt-1">{{ __('A user represents a doctor or a J4U committee member.') }}</flux:text>
+                <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">{{ $user ? __('Edit Administrator') : __('New Administrator') }}</h1>
+                <p class="mt-1 text-base-content/60">{{ __('An administrator is a J4U committee member with sign-in access.') }}</p>
             </div>
-            <flux:button variant="ghost" href="{{ route('users.index') }}" wire:navigate>
-                {{ __('Back') }}
-            </flux:button>
+            <x-button :label="__('Back')" icon="o-arrow-left" :link="route('users.index')" class="btn-ghost" />
         </div>
 
         @if (session('status'))
-            <flux:callout variant="success" icon="check-circle">{{ session('status') }}</flux:callout>
+            <x-alert :title="session('status')" icon="o-check-circle" class="alert-success" />
         @endif
 
-        <flux:card>
+        <x-card>
             <form wire:submit="save" class="space-y-4">
-                <flux:fieldset>
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <flux:field>
-                            <flux:label>{{ __('Name') }}</flux:label>
-                            <flux:input wire:model="name" placeholder="{{ __('Dr. Budi Santoso') }}" />
-                            <flux:error name="name" />
-                        </flux:field>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-input :label="__('Name')" wire:model="name" :placeholder="__('Committee member name')" />
+                    <x-input :label="__('Email')" wire:model="email" type="email" placeholder="admin@example.com" />
 
-                        <flux:field>
-                            <flux:label>{{ __('Email') }}</flux:label>
-                            <flux:input wire:model="email" type="email" placeholder="budi@example.com" />
-                            <flux:error name="email" />
-                        </flux:field>
+                    <x-password
+                        :label="__('Password')"
+                        :hint="$user ? __('leave blank to keep current') : __('min 8 characters')"
+                        wire:model="password"
+                        autocomplete="new-password"
+                        placeholder="••••••••"
+                        right
+                    />
 
-                        <flux:field>
-                            <flux:label>{{ __('Role') }}</flux:label>
-                            <flux:select wire:model="role" placeholder="{{ __('Select role...') }}">
-                                @foreach ($roles as $role)
-                                    <option value="{{ $role->value }}">{{ $role->label() }}</option>
-                                @endforeach
-                            </flux:select>
-                            <flux:error name="role" />
-                        </flux:field>
-
-                        <flux:field>
-                            <flux:label>
-                                {{ __('Password') }}
-                                <flux:text class="text-xs">
-                                    {{ $user ? __('leave blank to keep current') : __('min 8 characters') }}
-                                </flux:text>
-                            </flux:label>
-                            <flux:input wire:model="password" type="password" autocomplete="new-password" placeholder="••••••••" />
-                            <flux:error name="password" />
-                        </flux:field>
-
-                        <flux:field>
-                            <flux:label>{{ __('Confirm Password') }}</flux:label>
-                            <flux:input wire:model="passwordConfirmation" type="password" autocomplete="new-password" placeholder="••••••••" />
-                            <flux:error name="password" />
-                        </flux:field>
-                    </div>
-                </flux:fieldset>
+                    <x-password
+                        :label="__('Confirm Password')"
+                        wire:model="passwordConfirmation"
+                        error-field="password"
+                        autocomplete="new-password"
+                        placeholder="••••••••"
+                        right
+                    />
+                </div>
 
                 <div class="flex justify-end gap-3">
-                    <flux:button variant="ghost" href="{{ route('users.index') }}" wire:navigate>
-                        {{ __('Cancel') }}
-                    </flux:button>
-                    <flux:button variant="primary" type="submit">
-                        {{ $user ? __('Save Changes') : __('Create User') }}
-                    </flux:button>
+                    <x-button :label="__('Cancel')" :link="route('users.index')" class="btn-ghost" />
+                    <x-button :label="$user ? __('Save Changes') : __('Create Administrator')" type="submit" class="btn-primary" spinner="save" />
                 </div>
             </form>
-        </flux:card>
+        </x-card>
     </div>
 </section>

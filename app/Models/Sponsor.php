@@ -28,4 +28,17 @@ class Sponsor extends Model
     {
         return $this->hasMany(Deal::class);
     }
+
+    /**
+     * The sponsor's tier/level — the highest-priced package across its deals.
+     * Reads the loaded `deals.package` relation; eager-load it to avoid N+1.
+     */
+    public function topPackage(): ?Package
+    {
+        return $this->deals
+            ->map(fn (Deal $deal): ?Package => $deal->package)
+            ->filter()
+            ->sortByDesc(fn (Package $package): float => (float) $package->default_price)
+            ->first();
+    }
 }
