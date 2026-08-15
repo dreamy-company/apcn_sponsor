@@ -23,6 +23,15 @@
                     :placeholder="__('booth, symposium, naming, advertising, digital...')"
                 />
 
+                <x-input
+                    :label="__('Quota')"
+                    :hint="__('Max sponsors who can take this item. Leave blank for unlimited.')"
+                    wire:model="quota"
+                    type="number"
+                    min="0"
+                    :placeholder="__('Unlimited')"
+                />
+
                 <div>
                     <div class="flex items-center justify-between gap-4 rounded-box border border-base-300 p-3">
                         <div>

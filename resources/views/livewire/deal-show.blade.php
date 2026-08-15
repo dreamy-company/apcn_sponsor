@@ -2,8 +2,9 @@
     <div class="space-y-6">
         {{-- Header --}}
         <div class="flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-3">
                 <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">{{ $deal->deal_number }}</h1>
+                <x-tier-badge :package="$deal->package" size="lg" />
                 <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">
                     {{ $deal->status->label() }}
                 </span>
@@ -110,6 +111,86 @@
             </div>
         </x-card>
 
+        {{-- Assets --}}
+        <x-card>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-extrabold">{{ __('Assets') }}</h2>
+                    <p class="mt-1 text-sm text-base-content/60">{{ __('Files the sponsor will use (contracts, artwork, video). Max 50MB each.') }}</p>
+                </div>
+                @if ($deal->assets->isNotEmpty())
+                    <x-button :label="__('Download all')" icon="o-arrow-down-tray" wire:click="downloadAll" spinner="downloadAll" class="btn-outline btn-sm" />
+                @endif
+            </div>
+
+            @if (auth()->user()->isJ4u())
+                <form wire:submit="uploadAssets" class="mt-4 space-y-3">
+                    <div class="flex flex-wrap items-end gap-3">
+                        <x-file wire:model="assets" multiple class="max-w-md grow" :hint="__('Optional. Give each file a name below.')" />
+                        <x-button :label="__('Upload')" icon="o-arrow-up-tray" type="submit" class="btn-primary" spinner="uploadAssets" />
+                    </div>
+
+                    @if (! empty($assets))
+                        <div class="space-y-2 rounded-box border border-base-300 p-3">
+                            <p class="text-xs font-semibold text-base-content/60">{{ __('Name each file (optional)') }}</p>
+                            @foreach ($assets as $i => $file)
+                                <div class="flex items-center gap-3" wire:key="new-asset-{{ $i }}">
+                                    <x-input wire:model="assetNames.{{ $i }}" :placeholder="$file->getClientOriginalName()" class="grow" />
+                                    <span class="shrink-0 text-xs text-base-content/50">{{ $file->getClientOriginalName() }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @error('assets.*') <div class="mt-1 text-error">{{ $message }}</div> @enderror
+                </form>
+            @endif
+
+            <div class="mt-4 overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('File') }}</th>
+                            <th>{{ __('Size') }}</th>
+                            <th>{{ __('Uploaded') }}</th>
+                            <th>{{ __('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($deal->assets as $asset)
+                            <tr wire:key="asset-{{ $asset->id }}">
+                                <td class="font-semibold">
+                                    <button type="button" wire:click="downloadAsset({{ $asset->id }})" class="link link-primary text-start">{{ $asset->displayName() }}</button>
+                                </td>
+                                <td>{{ $asset->humanSize() }}</td>
+                                <td class="text-sm text-base-content/60">
+                                    {{ $asset->created_at?->format('d M Y') }}
+                                    @if ($asset->uploadedBy)
+                                        · {{ $asset->uploadedBy->name }}
+                                    @endif
+                                </td>
+                                <td>
+                                    <div class="flex gap-1">
+                                        <x-button icon="o-arrow-down-tray" wire:click="downloadAsset({{ $asset->id }})" class="btn-ghost btn-sm btn-square" />
+                                        @if (auth()->user()->isJ4u())
+                                            <x-button
+                                                icon="o-trash"
+                                                wire:click="deleteAsset({{ $asset->id }})"
+                                                wire:confirm="{{ __('Remove this asset?') }}"
+                                                class="btn-ghost btn-sm btn-square text-error"
+                                            />
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No assets uploaded yet.') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
+
         {{-- Payment terms --}}
         <x-card>
             <h2 class="text-lg font-extrabold">{{ __('Payment Terms') }}</h2>
@@ -122,6 +203,7 @@
                             <th>{{ __('Due Date') }}</th>
                             <th>{{ __('Amount') }}</th>
                             <th>{{ __('Status') }}</th>
+                            <th>{{ __('Transfer Proof') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -144,9 +226,35 @@
                                         </span>
                                     @endif
                                 </td>
+                                <td>
+                                    @if ($term->hasProof())
+                                        <div class="flex items-center gap-1">
+                                            <button type="button" wire:click="downloadProof({{ $term->id }})" class="link link-primary inline-flex items-center gap-1 text-sm">
+                                                <x-icon name="o-paper-clip" class="h-4 w-4" /> {{ $term->proofDownloadName() }}
+                                            </button>
+                                            <span class="text-xs text-base-content/40">{{ $term->proofHumanSize() }}</span>
+                                            @if (auth()->user()->isJ4u())
+                                                <x-button
+                                                    icon="o-trash"
+                                                    wire:click="deleteProof({{ $term->id }})"
+                                                    wire:confirm="{{ __('Remove this transfer proof?') }}"
+                                                    class="btn-ghost btn-xs btn-square text-error"
+                                                />
+                                            @endif
+                                        </div>
+                                    @elseif (auth()->user()->isJ4u())
+                                        <form wire:submit="uploadProof({{ $term->id }})" class="flex flex-wrap items-end gap-2">
+                                            <x-file wire:model="proofUploads.{{ $term->id }}" class="max-w-[11rem]" accept="image/*,application/pdf" />
+                                            <x-button :label="__('Upload')" icon="o-arrow-up-tray" type="submit" class="btn-primary btn-xs" spinner="uploadProof({{ $term->id }})" />
+                                            @error("proofUploads.{$term->id}") <div class="w-full text-xs text-error">{{ $message }}</div> @enderror
+                                        </form>
+                                    @else
+                                        <span class="text-base-content/40">—</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No payment terms.') }}</td></tr>
+                            <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No payment terms.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

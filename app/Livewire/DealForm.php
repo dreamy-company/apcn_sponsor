@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Actions\Deal\CreateDealAction;
+use App\Actions\Deal\StoreDealAssetAction;
 use App\Actions\Deal\UpdateDealAction;
 use App\DTOs\Deal\DealData;
 use App\Enums\UserRole;
@@ -10,14 +11,19 @@ use App\Models\Deal;
 use App\Models\Item;
 use App\Models\Package;
 use App\Models\User;
+use App\Services\QuotaService;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Exists;
 use Illuminate\View\View;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 class DealForm extends Component
 {
+    use WithFileUploads;
+
     public const TOTAL_STEPS = 4;
 
     public ?Deal $deal = null;
@@ -40,11 +46,14 @@ class DealForm extends Component
 
     public string $finalPrice = '';
 
-    /** @var array<int, array{item_id: int, name: string, type: string|null, is_addon: bool, checked: bool, custom_price: string}> */
+    /** @var array<int, array{item_id: int, name: string, type: string|null, quota: int|null, is_addon: bool, checked: bool, custom_price: string}> */
     public array $items = [];
 
     /** @var array<int, array{description: string, due_date: string, amount: string}> */
     public array $paymentTerms = [];
+
+    /** @var array<int, TemporaryUploadedFile> */
+    public array $assets = [];
 
     public function mount(?Deal $deal = null): void
     {
@@ -102,10 +111,18 @@ class DealForm extends Component
             $this->validate($rules);
         }
 
-        if ($this->currentStep === 2 && $this->checkedItemCount() === 0) {
-            $this->addError('items', __('Select at least one item.'));
+        if ($this->currentStep === 2) {
+            if ($this->checkedItemCount() === 0) {
+                $this->addError('items', __('Select at least one item.'));
 
-            return;
+                return;
+            }
+
+            if (($violation = $this->quotaViolation()) !== null) {
+                $this->addError('items', $violation);
+
+                return;
+            }
         }
 
         $this->currentStep = min($this->currentStep + 1, self::TOTAL_STEPS);
@@ -130,6 +147,42 @@ class DealForm extends Component
     protected function checkedItemCount(): int
     {
         return collect($this->items)->filter(fn (array $row): bool => $row['checked'])->count();
+    }
+
+    /**
+     * First quota problem among the chosen package / selected items, if any.
+     * Quota is consumed by finalized deals only, so a full item can never be
+     * added to a new deal (it could never be finalized).
+     */
+    protected function quotaViolation(): ?string
+    {
+        $quota = app(QuotaService::class);
+
+        if ($this->packageId) {
+            $package = Package::find($this->packageId);
+
+            if ($package && $package->quota !== null) {
+                $taken = $quota->packageTakenCount($package->id, $this->deal?->id);
+
+                if ($quota->isFull($package->quota, $taken)) {
+                    return __('Package ":name" is at full quota.', ['name' => $package->name]);
+                }
+            }
+        }
+
+        foreach ($this->items as $row) {
+            if (! $row['checked'] || ($row['quota'] ?? null) === null) {
+                continue;
+            }
+
+            $taken = $quota->itemTakenCount((int) $row['item_id'], $this->deal?->id);
+
+            if ($quota->isFull($row['quota'], $taken)) {
+                return __('Item ":name" is at full quota.', ['name' => $row['name']]);
+            }
+        }
+
+        return null;
     }
 
     public function updatedPackageId(): void
@@ -188,6 +241,12 @@ class DealForm extends Component
             return;
         }
 
+        if (($violation = $this->quotaViolation()) !== null) {
+            $this->addError('items', $violation);
+
+            return;
+        }
+
         $data = new DealData(
             doctorId: (int) $validated['doctorId'],
             companyName: $validated['companyName'],
@@ -203,6 +262,12 @@ class DealForm extends Component
             ? app(UpdateDealAction::class)->execute($this->deal, $data)
             : app(CreateDealAction::class)->execute($data);
 
+        $uploaderId = auth()->id() !== null ? (int) auth()->id() : null;
+
+        foreach ($this->assets as $file) {
+            app(StoreDealAssetAction::class)->execute($deal, $file, $uploaderId);
+        }
+
         session()->flash('status', $this->deal ? 'Deal updated.' : 'Deal created.');
 
         $this->redirect(route('deals.show', $deal), navigate: true);
@@ -210,9 +275,30 @@ class DealForm extends Component
 
     public function render(): View
     {
+        $quota = app(QuotaService::class);
+
+        // taken (finalized) counts keyed by item / package id, excluding this deal.
+        $itemsTaken = collect($this->items)
+            ->filter(fn (array $row): bool => ($row['quota'] ?? null) !== null)
+            ->mapWithKeys(fn (array $row): array => [
+                $row['item_id'] => $quota->itemTakenCount((int) $row['item_id'], $this->deal?->id),
+            ])
+            ->all();
+
+        $packages = Package::with('items')->orderBy('name')->get();
+
+        $packagesTaken = $packages
+            ->filter(fn (Package $p): bool => $p->quota !== null)
+            ->mapWithKeys(fn (Package $p): array => [
+                $p->id => $quota->packageTakenCount($p->id, $this->deal?->id),
+            ])
+            ->all();
+
         return view('livewire.deal-form', [
-            'packages' => Package::with('items')->orderBy('name')->get(),
+            'packages' => $packages,
             'doctors' => User::where('role', UserRole::Doctor->value)->orderBy('name')->get(),
+            'itemsTaken' => $itemsTaken,
+            'packagesTaken' => $packagesTaken,
         ]);
     }
 
@@ -237,6 +323,7 @@ class DealForm extends Component
                     'item_id' => $item->id,
                     'name' => $item->name,
                     'type' => $item->type,
+                    'quota' => $item->quota,
                     'is_addon' => $isAddon,
                     'checked' => $inDeal || ! $isAddon,
                     'custom_price' => $inDeal ? $dealItemMap[$item->id]['custom_price'] : '',
@@ -284,6 +371,8 @@ class DealForm extends Component
             'finalPrice' => ['required', 'numeric', 'min:0'],
             'items.*.checked' => ['boolean'],
             'items.*.custom_price' => ['nullable', 'numeric', 'min:0'],
+            'assets' => ['array'],
+            'assets.*' => ['file', 'max:51200'],
             'paymentTerms.*.description' => ['required', 'string', 'max:255'],
             'paymentTerms.*.due_date' => ['required', 'date'],
             'paymentTerms.*.amount' => ['required', 'numeric', 'min:0'],

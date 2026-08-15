@@ -97,7 +97,14 @@
                             <x-select
                                 :label="__('Base Package (Tier)')"
                                 wire:model.live="packageId"
-                                :options="$packages->map(fn ($p) => ['id' => $p->id, 'name' => $p->name.' — Rp '.number_format((float) $p->default_price, 0, ',', '.')])"
+                                :options="$packages->map(function ($p) use ($packagesTaken) {
+                                    $label = $p->name.' — Rp '.number_format((float) $p->default_price, 0, ',', '.');
+                                    if ($p->quota !== null) {
+                                        $taken = $packagesTaken[$p->id] ?? 0;
+                                        $label .= ' · '.$taken.'/'.$p->quota.($taken >= $p->quota ? ' '.__('FULL') : '');
+                                    }
+                                    return ['id' => $p->id, 'name' => $label];
+                                })"
                                 option-value="id"
                                 option-label="name"
                                 :placeholder="'— '.__('No base package').' —'"
@@ -107,17 +114,31 @@
                                 <label class="fieldset-label mb-2 block text-sm font-semibold">{{ __('Items') }}</label>
                                 <div class="grid gap-2 sm:grid-cols-2">
                                     @forelse ($items as $index => $item)
+                                        @php
+                                            $itemQuota = $item['quota'] ?? null;
+                                            $taken = $itemsTaken[$item['item_id']] ?? 0;
+                                            $full = $itemQuota !== null && $taken >= $itemQuota;
+                                            $blocked = $full && ! $item['checked'];
+                                        @endphp
                                         <label @class([
-                                            'flex cursor-pointer items-start justify-between gap-3 rounded-box border p-3 transition',
+                                            'flex items-start justify-between gap-3 rounded-box border p-3 transition',
+                                            'cursor-pointer' => ! $blocked,
+                                            'cursor-not-allowed opacity-60' => $blocked,
                                             'border-primary bg-primary-soft' => $item['checked'],
-                                            'border-base-300 hover:border-primary/40' => ! $item['checked'],
+                                            'border-base-300 hover:border-primary/40' => ! $item['checked'] && ! $blocked,
+                                            'border-base-300' => $blocked,
                                         ])>
                                             <div class="flex items-start gap-3">
-                                                <x-checkbox wire:model.live="items.{{ $index }}.checked" />
+                                                <x-checkbox wire:model.live="items.{{ $index }}.checked" @disabled($blocked) />
                                                 <div>
                                                     <div class="text-sm font-semibold">{{ $item['name'] }}</div>
-                                                    <div class="text-xs text-base-content/50">
-                                                        {{ $item['is_addon'] ? __('Add-on') : __('Package item') }}
+                                                    <div class="flex flex-wrap items-center gap-1.5 text-xs text-base-content/50">
+                                                        <span>{{ $item['is_addon'] ? __('Add-on') : __('Package item') }}</span>
+                                                        @if ($itemQuota !== null)
+                                                            <span class="badge badge-soft badge-xs {{ $full ? 'badge-error' : 'badge-ghost' }}">
+                                                                {{ $taken }}/{{ $itemQuota }} {{ $full ? __('Full') : __('taken') }}
+                                                            </span>
+                                                        @endif
                                                     </div>
                                                 </div>
                                             </div>
@@ -141,6 +162,16 @@
                             </div>
 
                             <x-input :label="__('Final Price (IDR)')" wire:model="finalPrice" type="number" min="0" step="0.01" placeholder="0" prefix="Rp" />
+
+                            <div>
+                                <x-file
+                                    wire:model="assets"
+                                    multiple
+                                    :label="__('Assets (optional)')"
+                                    :hint="__('Contracts, artwork, etc. Max 50MB each. You can also add these later on the sponsor page.')"
+                                />
+                                @error('assets.*') <div class="mt-1 text-error">{{ $message }}</div> @enderror
+                            </div>
                         </div>
                     </div>
 

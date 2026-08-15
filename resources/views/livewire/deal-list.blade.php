@@ -35,7 +35,7 @@
                             <th>{{ __('Deal #') }}</th>
                             <th>{{ __('Sponsor') }}</th>
                             <th>{{ __('Doctor') }}</th>
-                            <th>{{ __('Package') }}</th>
+                            <th>{{ __('Level') }}</th>
                             <th>{{ __('Final Price') }}</th>
                             <th>{{ __('Status') }}</th>
                         </tr>
@@ -48,7 +48,7 @@
                                 </td>
                                 <td>{{ $deal->sponsor->company_name }}</td>
                                 <td>{{ $deal->doctor->name }}</td>
-                                <td>{{ $deal->package?->name ?? '—' }}</td>
+                                <td><x-tier-badge :package="$deal->package" /></td>
                                 <td>Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</td>
                                 <td>
                                     <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">

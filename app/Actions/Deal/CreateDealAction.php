@@ -16,11 +16,14 @@ class CreateDealAction
     public function execute(DealData $data): Deal
     {
         return DB::transaction(function () use ($data): Deal {
-            $sponsor = Sponsor::create([
-                'company_name' => $data->companyName,
+            // A sponsor is the company entity: reuse an existing one by name so a
+            // company's deals aggregate under a single sponsor. PIC is refreshed
+            // to the latest details entered.
+            $sponsor = Sponsor::firstOrNew(['company_name' => $data->companyName]);
+            $sponsor->fill([
                 'pic_name' => $data->picName,
                 'pic_contact' => $data->picContact,
-            ]);
+            ])->save();
 
             $deal = Deal::create([
                 'deal_number' => $this->generateDealNumber(),

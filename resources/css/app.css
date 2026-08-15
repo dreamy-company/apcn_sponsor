@@ -275,14 +275,21 @@
    Any light surface rendered INSIDE a navy bar (dropdown menus, modals,
    popovers) must reclaim the theme's base-content so text isn't white-on-white.
    ---------------------------------------------------------------------------- */
+/* Mary's dropdown only adds `.dropdown-content` when `no-x-anchor` is set; the
+   default (x-anchor) dropdown is a bare `details.dropdown > ul.menu`. Target both
+   so menu items don't inherit the navy bar's light text on their light panel. */
 .apcn-topbar .dropdown-content,
 .apcn-topbar .menu.dropdown-content,
-.apcn-sidebar .dropdown-content {
+.apcn-topbar details.dropdown > ul,
+.apcn-sidebar .dropdown-content,
+.apcn-sidebar details.dropdown > ul {
     color: var(--color-base-content);
     background-color: var(--color-base-100);
 }
 .apcn-topbar .dropdown-content :where(a, button, .menu-title),
-.apcn-sidebar .dropdown-content :where(a, button, .menu-title) {
+.apcn-topbar details.dropdown > ul :where(a, button, .menu-title),
+.apcn-sidebar .dropdown-content :where(a, button, .menu-title),
+.apcn-sidebar details.dropdown > ul :where(a, button, .menu-title) {
     color: var(--color-base-content);
     border-radius: 9999px;
 }

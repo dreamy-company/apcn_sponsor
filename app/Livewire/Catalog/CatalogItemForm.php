@@ -17,6 +17,8 @@ class CatalogItemForm extends Component
 
     public string $type = '';
 
+    public ?int $quota = null;
+
     public bool $requiresMaterial = false;
 
     public function mount(?Item $item = null): void
@@ -28,6 +30,7 @@ class CatalogItemForm extends Component
         if ($item) {
             $this->name = $item->name;
             $this->type = $item->type ?? '';
+            $this->quota = $item->quota;
             $this->requiresMaterial = (bool) $item->requires_material;
         }
     }
@@ -39,6 +42,7 @@ class CatalogItemForm extends Component
         $data = new ItemData(
             name: $validated['name'],
             type: $validated['type'] !== '' && $validated['type'] !== null ? $validated['type'] : null,
+            quota: $validated['quota'] !== null && $validated['quota'] !== '' ? (int) $validated['quota'] : null,
             requiresMaterial: $validated['requiresMaterial'],
         );
 
@@ -64,6 +68,7 @@ class CatalogItemForm extends Component
         return [
             'name' => ['required', 'string', 'max:255'],
             'type' => ['nullable', 'string', 'max:100'],
+            'quota' => ['nullable', 'integer', 'min:0'],
             'requiresMaterial' => ['boolean'],
         ];
     }

@@ -38,6 +38,8 @@
                         :link="route('deals.index')" :active="request()->routeIs('deals.*')" />
 
                     <x-menu-title title="{{ __('Management') }}" />
+                    <x-menu-item title="{{ __('Sponsors') }}" icon="o-building-office-2"
+                        :link="route('sponsors.index')" :active="request()->routeIs('sponsors.*')" />
                     <x-menu-item title="{{ __('Doctors') }}" icon="o-user-group"
                         :link="route('doctors.index')" :active="request()->routeIs('doctors.*')" />
                     <x-menu-item title="{{ __('Items') }}" icon="o-list-bullet"

@@ -14,6 +14,7 @@ class UpdateItemAction
             $item->update([
                 'name' => $data->name,
                 'type' => $data->type,
+                'quota' => $data->quota,
                 'requires_material' => $data->requiresMaterial,
             ]);
 

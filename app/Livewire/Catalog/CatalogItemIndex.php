@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Catalog;
 
+use App\Enums\DealStatus;
 use App\Models\Item;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -41,6 +42,7 @@ class CatalogItemIndex extends Component
     {
         return view('livewire.catalog.item-index', [
             'items' => Item::query()
+                ->withCount(['deals as taken_count' => fn ($q) => $q->where('deals.status', DealStatus::Finalized->value)])
                 ->when($this->search !== '', fn ($q) => $q->where('name', 'like', '%'.$this->search.'%'))
                 ->orderBy('name')
                 ->get(),

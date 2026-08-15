@@ -39,8 +39,8 @@
             <div class="text-xs text-base-content/50">{{ $deal->sponsor->pic_contact }}</div>
         </div>
         <div>
-            <span class="eyebrow text-base-content/50">{{ __('Package') }}</span>
-            <div class="mt-1 text-sm font-semibold">{{ $deal->package?->name ?? __('Custom') }}</div>
+            <span class="eyebrow text-base-content/50">{{ __('Level') }}</span>
+            <div class="mt-1"><x-tier-badge :package="$deal->package" /></div>
         </div>
     </div>
 
@@ -69,7 +69,7 @@
         <h3 class="mb-2 text-sm font-extrabold">{{ __('Payment Terms') }}</h3>
         <div class="overflow-x-auto">
             <table class="table table-sm">
-                <thead><tr><th>{{ __('Description') }}</th><th>{{ __('Due') }}</th><th>{{ __('Amount') }}</th><th>{{ __('Status') }}</th></tr></thead>
+                <thead><tr><th>{{ __('Description') }}</th><th>{{ __('Due') }}</th><th>{{ __('Amount') }}</th><th>{{ __('Status') }}</th><th>{{ __('Proof') }}</th></tr></thead>
                 <tbody>
                     @forelse ($deal->paymentTerms as $term)
                         <tr>
@@ -77,9 +77,18 @@
                             <td>{{ $term->due_date->format('d M Y') }}</td>
                             <td>Rp {{ number_format((float) $term->amount, 0, ',', '.') }}</td>
                             <td><span class="badge badge-soft {{ $term->status === \App\Enums\PaymentStatus::Paid ? 'badge-success' : 'badge-ghost' }}">{{ $term->status->label() }}</span></td>
+                            <td>
+                                @if ($term->hasProof())
+                                    <a href="{{ $term->proofUrl() }}" target="_blank" class="link link-primary inline-flex items-center gap-1 text-sm">
+                                        <x-icon name="o-paper-clip" class="h-4 w-4" /> {{ __('View') }}
+                                    </a>
+                                @else
+                                    <span class="text-base-content/40">—</span>
+                                @endif
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No payment terms.') }}</td></tr>
+                        <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No payment terms.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -15,6 +15,7 @@
                         <tr>
                             <th>{{ __('Name') }}</th>
                             <th>{{ __('Default Price') }}</th>
+                            <th>{{ __('Quota') }}</th>
                             <th>{{ __('Items') }}</th>
                             <th>{{ __('Actions') }}</th>
                         </tr>
@@ -22,8 +23,15 @@
                     <tbody>
                         @forelse ($packages as $package)
                             <tr wire:key="{{ $package->id }}">
-                                <td class="font-semibold">{{ $package->name }}</td>
+                                <td class="font-semibold">
+                                    <a href="{{ route('catalog.packages.show', $package) }}" class="link link-primary" wire:navigate>{{ $package->name }}</a>
+                                </td>
                                 <td>Rp {{ number_format((float) $package->default_price, 0, ',', '.') }}</td>
+                                <td>
+                                    <span class="badge badge-soft {{ $package->quota !== null && $package->taken_count >= $package->quota ? 'badge-error' : 'badge-ghost' }}">
+                                        {{ $package->taken_count }} / {{ $package->quota ?? '∞' }}
+                                    </span>
+                                </td>
                                 <td>{{ $package->items_count }} {{ __('items') }}</td>
                                 <td>
                                     <div class="flex gap-1">
@@ -38,7 +46,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No packages yet.') }}</td></tr>
+                            <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No packages yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

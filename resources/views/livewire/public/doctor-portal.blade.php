@@ -32,8 +32,11 @@
                     <summary class="collapse-title">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
-                                <div class="font-extrabold">{{ $deal->sponsor->company_name }}</div>
-                                <div class="text-xs text-base-content/50">{{ $deal->deal_number }} · {{ $deal->package?->name ?? __('Custom') }}</div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-extrabold">{{ $deal->sponsor->company_name }}</span>
+                                    <x-tier-badge :package="$deal->package" />
+                                </div>
+                                <div class="text-xs text-base-content/50">{{ $deal->deal_number }}</div>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="font-semibold">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</span>

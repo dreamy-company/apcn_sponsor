@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Catalog;
 
+use App\Enums\DealStatus;
 use App\Models\Package;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -36,7 +37,10 @@ class CatalogPackageIndex extends Component
     public function render(): View
     {
         return view('livewire.catalog.package-index', [
-            'packages' => Package::withCount('items')->orderBy('default_price', 'desc')->get(),
+            'packages' => Package::withCount('items')
+                ->withCount(['deals as taken_count' => fn ($q) => $q->where('status', DealStatus::Finalized->value)])
+                ->orderBy('default_price', 'desc')
+                ->get(),
         ]);
     }
 

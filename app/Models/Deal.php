@@ -77,6 +77,12 @@ class Deal extends Model
         return $this->hasMany(ActivityLog::class);
     }
 
+    /** @return HasMany<DealAsset, $this> */
+    public function assets(): HasMany
+    {
+        return $this->hasMany(DealAsset::class);
+    }
+
     protected function casts(): array
     {
         return [

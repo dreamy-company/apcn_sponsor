@@ -4,6 +4,7 @@ namespace App\Actions\Deal;
 
 use App\DTOs\Deal\DealData;
 use App\Models\Deal;
+use App\Models\Sponsor;
 use Illuminate\Support\Facades\DB;
 
 class UpdateDealAction
@@ -14,17 +15,28 @@ class UpdateDealAction
     public function execute(Deal $deal, DealData $data): Deal
     {
         return DB::transaction(function () use ($deal, $data): Deal {
-            $deal->sponsor()->update([
-                'company_name' => $data->companyName,
+            $previousSponsorId = $deal->sponsor_id;
+
+            // Resolve the sponsor by company name (it may have changed). A company
+            // is a single sponsor, so repoint the deal rather than renaming a shared
+            // sponsor. PIC is refreshed to the latest details.
+            $sponsor = Sponsor::firstOrNew(['company_name' => $data->companyName]);
+            $sponsor->fill([
                 'pic_name' => $data->picName,
                 'pic_contact' => $data->picContact,
-            ]);
+            ])->save();
 
             $deal->update([
                 'doctor_id' => $data->doctorId,
+                'sponsor_id' => $sponsor->id,
                 'package_id' => $data->packageId,
                 'final_price' => $data->finalPrice,
             ]);
+
+            // Clean up the previous sponsor if it is now orphaned.
+            if ($previousSponsorId !== $sponsor->id) {
+                Sponsor::whereKey($previousSponsorId)->whereDoesntHave('deals')->delete();
+            }
 
             $this->syncItems($deal, $data->items);
 

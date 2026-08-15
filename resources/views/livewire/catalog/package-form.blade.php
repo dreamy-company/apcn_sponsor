@@ -14,9 +14,10 @@
 
         <x-card>
             <form wire:submit="save" class="space-y-4">
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid gap-4 sm:grid-cols-3">
                     <x-input :label="__('Name')" wire:model="name" :placeholder="__('Diamond')" />
                     <x-input :label="__('Default Price (IDR)')" wire:model="defaultPrice" type="number" min="0" step="0.01" placeholder="0" prefix="Rp" />
+                    <x-input :label="__('Quota')" :hint="__('Blank = unlimited')" wire:model="quota" type="number" min="0" :placeholder="__('Unlimited')" />
                 </div>
 
                 <hr class="border-base-300">

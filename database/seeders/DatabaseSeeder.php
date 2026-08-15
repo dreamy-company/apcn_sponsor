@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\Sponsor;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -25,6 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->call(SponsorCatalogSeeder::class);
 
         Setting::set('public_access_code', 'APCN2027');
+        Setting::set('report_public_token', Str::random(40));
 
         $this->seedExampleDeal();
     }

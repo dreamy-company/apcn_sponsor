@@ -13,6 +13,7 @@ final readonly class PackageData
     public function __construct(
         public string $name,
         public string $defaultPrice,
+        public ?int $quota,
         public array $itemIds,
     ) {}
 }

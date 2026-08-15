@@ -22,6 +22,7 @@
                         <tr>
                             <th>{{ __('Name') }}</th>
                             <th>{{ __('Type') }}</th>
+                            <th>{{ __('Quota') }}</th>
                             <th>{{ __('Material') }}</th>
                             <th>{{ __('Actions') }}</th>
                         </tr>
@@ -29,8 +30,15 @@
                     <tbody>
                         @forelse ($items as $item)
                             <tr wire:key="{{ $item->id }}">
-                                <td class="font-semibold">{{ $item->name }}</td>
+                                <td class="font-semibold">
+                                    <a href="{{ route('catalog.items.show', $item) }}" class="link link-primary" wire:navigate>{{ $item->name }}</a>
+                                </td>
                                 <td>{{ $item->type ?? '—' }}</td>
+                                <td>
+                                    <span class="badge badge-soft {{ $item->quota !== null && $item->taken_count >= $item->quota ? 'badge-error' : 'badge-ghost' }}">
+                                        {{ $item->taken_count }} / {{ $item->quota ?? '∞' }}
+                                    </span>
+                                </td>
                                 <td>
                                     <span class="badge badge-soft {{ $item->requires_material ? 'badge-warning' : 'badge-ghost' }}">
                                         {{ $item->requires_material ? __('Required') : __('None') }}
@@ -49,7 +57,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No items yet.') }}</td></tr>
+                            <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No items yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
