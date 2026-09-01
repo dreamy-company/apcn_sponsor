@@ -14,6 +14,7 @@ class CreateItemAction
             'name' => $data->name,
             'type' => $data->type,
             'quota' => $data->quota,
+            'default_price' => $data->defaultPrice,
             'requires_material' => $data->requiresMaterial,
         ]));
     }

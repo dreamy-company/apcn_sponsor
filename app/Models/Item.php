@@ -16,11 +16,12 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $type
  * @property int|null $quota
+ * @property numeric-string|null $default_price
  * @property bool $requires_material
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'type', 'quota', 'requires_material'])]
+#[Fillable(['name', 'type', 'quota', 'default_price', 'requires_material'])]
 class Item extends Model
 {
     /** @use HasFactory<ItemFactory> */
@@ -51,6 +52,7 @@ class Item extends Model
     {
         return [
             'quota' => 'integer',
+            'default_price' => 'decimal:2',
             'requires_material' => 'boolean',
         ];
     }

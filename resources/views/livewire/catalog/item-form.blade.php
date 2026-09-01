@@ -24,6 +24,17 @@
                 />
 
                 <x-input
+                    :label="__('Default Price (IDR)')"
+                    :hint="__('Rate-card price when sold separately as an add-on. Leave blank if quoted per deal.')"
+                    wire:model="defaultPrice"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
+                    prefix="Rp"
+                />
+
+                <x-input
                     :label="__('Quota')"
                     :hint="__('Max sponsors who can take this item. Leave blank for unlimited.')"
                     wire:model="quota"

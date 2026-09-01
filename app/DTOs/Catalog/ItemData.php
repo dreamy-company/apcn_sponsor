@@ -11,6 +11,7 @@ final readonly class ItemData
         public string $name,
         public ?string $type,
         public ?int $quota,
+        public ?string $defaultPrice,
         public bool $requiresMaterial,
     ) {}
 }
