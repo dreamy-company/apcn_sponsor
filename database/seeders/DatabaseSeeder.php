@@ -50,7 +50,7 @@ class DatabaseSeeder extends Seeder
             'doctor_id' => $doctor->id,
             'sponsor_id' => $sponsor->id,
             'package_id' => $diamond->id,
-            'final_price' => 550_000_000,
+            'final_price' => 3_529_500_000,
             'status' => DealStatus::Draft,
         ]);
 
@@ -60,12 +60,12 @@ class DatabaseSeeder extends Seeder
             ])->all()
         );
 
-        $addon = Item::where('name', 'E-Poster Recognition')->firstOrFail();
-        $deal->items()->attach($addon->id, ['is_addon' => true, 'custom_price' => 50_000_000]);
+        $addon = Item::where('name', 'Gala Dinner Naming Rights')->firstOrFail();
+        $deal->items()->attach($addon->id, ['is_addon' => true, 'custom_price' => $addon->default_price]);
 
         $deal->paymentTerms()->createMany([
-            ['description' => 'Termin 1 (DP 50%)', 'due_date' => now()->addMonths(2)->toDateString(), 'amount' => 275_000_000, 'status' => PaymentStatus::Paid],
-            ['description' => 'Termin 2 (50%)', 'due_date' => now()->addMonths(8)->toDateString(), 'amount' => 275_000_000, 'status' => PaymentStatus::Pending],
+            ['description' => 'Termin 1 (DP 50%)', 'due_date' => now()->addMonths(2)->toDateString(), 'amount' => 1_764_750_000, 'status' => PaymentStatus::Paid],
+            ['description' => 'Termin 2 (50%)', 'due_date' => now()->addMonths(8)->toDateString(), 'amount' => 1_764_750_000, 'status' => PaymentStatus::Pending],
         ]);
 
         // Fires DealFinalized -> material checklist generation (observers active in seeder).

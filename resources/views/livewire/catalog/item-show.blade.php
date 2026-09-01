@@ -13,7 +13,14 @@
         </div>
 
         {{-- Quota --}}
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <x-card>
+                <h3 class="eyebrow text-base-content/50">{{ __('Default Price') }}</h3>
+                <div class="mt-2 text-2xl font-extrabold">
+                    {{ $item->default_price !== null ? 'Rp '.number_format((float) $item->default_price, 0, ',', '.') : '—' }}
+                </div>
+                <p class="mt-1 text-sm text-base-content/60">{{ __('Add-on rate card') }}</p>
+            </x-card>
             <x-card>
                 <h3 class="eyebrow text-base-content/50">{{ __('Quota') }}</h3>
                 <div class="mt-2 text-2xl font-extrabold">

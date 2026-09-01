@@ -22,6 +22,7 @@
                         <tr>
                             <th>{{ __('Name') }}</th>
                             <th>{{ __('Type') }}</th>
+                            <th>{{ __('Price') }}</th>
                             <th>{{ __('Quota') }}</th>
                             <th>{{ __('Material') }}</th>
                             <th>{{ __('Actions') }}</th>
@@ -34,6 +35,9 @@
                                     <a href="{{ route('catalog.items.show', $item) }}" class="link link-primary" wire:navigate>{{ $item->name }}</a>
                                 </td>
                                 <td>{{ $item->type ?? '—' }}</td>
+                                <td class="whitespace-nowrap">
+                                    {{ $item->default_price !== null ? 'Rp '.number_format((float) $item->default_price, 0, ',', '.') : '—' }}
+                                </td>
                                 <td>
                                     <span class="badge badge-soft {{ $item->quota !== null && $item->taken_count >= $item->quota ? 'badge-error' : 'badge-ghost' }}">
                                         {{ $item->taken_count }} / {{ $item->quota ?? '∞' }}
@@ -57,7 +61,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No items yet.') }}</td></tr>
+                            <tr><td colspan="6" class="text-center text-base-content/50">{{ __('No items yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

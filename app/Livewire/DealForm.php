@@ -326,7 +326,9 @@ class DealForm extends Component
                     'quota' => $item->quota,
                     'is_addon' => $isAddon,
                     'checked' => $inDeal || ! $isAddon,
-                    'custom_price' => $inDeal ? $dealItemMap[$item->id]['custom_price'] : '',
+                    'custom_price' => $inDeal
+                        ? $dealItemMap[$item->id]['custom_price']
+                        : ($isAddon && $item->default_price !== null ? (string) $item->default_price : ''),
                 ];
             })
             ->all();
