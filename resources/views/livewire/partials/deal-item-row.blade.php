@@ -1,6 +1,5 @@
 {{-- One row of the item picker.
-     $index    — key into the $items array (never re-sorted; wire:model binds to it)
-     $selected — true when rendered in the "Selected Items" group --}}
+     $index — key into the $items array (never re-sorted; wire:model binds to it) --}}
 @php
     $item = $items[$index];
     $itemQuota = $item['quota'] ?? null;
@@ -9,7 +8,6 @@
     $units = max(1, (int) $item['quantity']);
     $full = $itemQuota !== null && $remaining < $units;
     $blocked = $full && ! $item['checked'];
-    $catalogInclusion = $item['catalog_inclusion'] ?? '';
 @endphp
 
 <div wire:key="item-{{ $item['item_id'] }}" @class([
@@ -60,17 +58,3 @@
             @endif
         </div>
     </label>
-
-    {{-- Inclusion is only worth editing once the item is actually on the deal. --}}
-    @if ($selected)
-        <div class="border-t border-base-300/60 px-3 pb-3 pt-2">
-            <x-textarea
-                :label="__('Inclusion')"
-                wire:model.blur="items.{{ $index }}.inclusion"
-                rows="2"
-                :placeholder="$catalogInclusion !== '' ? $catalogInclusion : __('What the sponsor gets for this item.')"
-                :hint="$catalogInclusion !== '' ? __('Leave blank to use the catalog text shown above.') : null"
-            />
-        </div>
-    @endif
-</div>

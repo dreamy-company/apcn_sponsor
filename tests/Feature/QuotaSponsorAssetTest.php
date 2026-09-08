@@ -123,7 +123,7 @@ class QuotaSponsorAssetTest extends TestCase
             ->set('packageId', null)
             ->set('finalPrice', '10000000')
             ->set('items', [
-                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => 1, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
+                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => 1, 'quantity' => 1, 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
             ])
             ->set('paymentTerms', [])
             ->call('save')
@@ -150,8 +150,9 @@ class QuotaSponsorAssetTest extends TestCase
             packageId: null,
             currency: 'IDR',
             subtotal: '0',
+            inclusion: null,
             finalPrice: '10000000',
-            items: [['item_id' => $item->id, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'custom_price' => null]],
+            items: [['item_id' => $item->id, 'quantity' => 1, 'catalog_inclusion' => '', 'is_addon' => true, 'custom_price' => null]],
             paymentTerms: [],
         );
 
@@ -178,8 +179,9 @@ class QuotaSponsorAssetTest extends TestCase
             packageId: null,
             currency: 'IDR',
             subtotal: '0',
+            inclusion: null,
             finalPrice: '10000000',
-            items: [['item_id' => $item->id, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'custom_price' => null]],
+            items: [['item_id' => $item->id, 'quantity' => 1, 'catalog_inclusion' => '', 'is_addon' => true, 'custom_price' => null]],
             paymentTerms: [],
         );
 
@@ -251,7 +253,7 @@ class QuotaSponsorAssetTest extends TestCase
             ->set('packageId', null)
             ->set('finalPrice', '10000000')
             ->set('items', [
-                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
+                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
             ])
             ->set('paymentTerms', [])
             ->set('assets', [UploadedFile::fake()->create('contract.pdf', 30000)]) // ~30MB > 20MB

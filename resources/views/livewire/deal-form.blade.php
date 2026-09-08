@@ -150,7 +150,7 @@
 
                                 <div class="grid gap-2">
                                     @forelse ($selectedItemKeys as $index)
-                                        @include('livewire.partials.deal-item-row', ['index' => $index, 'selected' => true])
+                                        @include('livewire.partials.deal-item-row', ['index' => $index])
                                     @empty
                                         <p class="rounded-box border border-dashed border-base-300 p-4 text-center text-sm text-base-content/50">
                                             {{ __('No items selected yet. Pick a package above, or choose from the list below.') }}
@@ -177,7 +177,7 @@
 
                                 <div class="grid gap-2 sm:grid-cols-2">
                                     @forelse ($availableItemKeys as $index)
-                                        @include('livewire.partials.deal-item-row', ['index' => $index, 'selected' => false])
+                                        @include('livewire.partials.deal-item-row', ['index' => $index])
                                     @empty
                                         <p class="text-base-content/50">
                                             {{ $itemSearch !== '' ? __('No items match your search.') : __('Every catalog item is already selected.') }}
@@ -218,6 +218,16 @@
                                         </p>
                                     @endif
                                 </div>
+                            </div>
+
+                            <div>
+                                <x-textarea
+                                    :label="__('Inclusion')"
+                                    wire:model.blur="inclusion"
+                                    rows="4"
+                                    :placeholder="__('What the sponsor gets on this deal.')"
+                                    :hint="__('One note for the whole deal — it appears on the deal page and the sponsor report.')"
+                                />
                             </div>
 
                             <div>
@@ -358,6 +368,13 @@
                                     @endforelse
                                 </div>
                             </div>
+
+                            @if (trim($inclusion) !== '')
+                                <div>
+                                    <span class="eyebrow text-base-content/50">{{ __('Inclusion') }}</span>
+                                    <p class="mt-1 text-sm whitespace-pre-line text-base-content/70">{{ $inclusion }}</p>
+                                </div>
+                            @endif
 
                             <div>
                                 <span class="eyebrow text-base-content/50">{{ __('Payment Terms') }}</span>

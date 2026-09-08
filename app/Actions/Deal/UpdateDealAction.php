@@ -35,6 +35,7 @@ class UpdateDealAction
                 'package_id' => $data->packageId,
                 'currency' => $data->currency,
                 'subtotal' => $data->subtotal,
+                'inclusion' => $data->inclusion,
                 'final_price' => $data->finalPrice,
             ]);
 
@@ -51,14 +52,13 @@ class UpdateDealAction
     }
 
     /**
-     * @param  array<int, array{item_id: int, quantity: int, inclusion: string|null, is_addon: bool, custom_price: string|null}>  $items
+     * @param  array<int, array{item_id: int, quantity: int, is_addon: bool, custom_price: string|null}>  $items
      */
     protected function syncItems(Deal $deal, array $items): void
     {
         $pivot = collect($items)->mapWithKeys(fn (array $item): array => [
             $item['item_id'] => [
                 'quantity' => max(1, $item['quantity']),
-                'inclusion' => $item['inclusion'],
                 'is_addon' => $item['is_addon'],
                 'custom_price' => $item['custom_price'] !== '' && $item['custom_price'] !== null
                     ? $item['custom_price']

@@ -40,7 +40,7 @@ class Item extends Model
     {
         return $this->belongsToMany(Deal::class, 'deal_items')
             ->using(DealItem::class)
-            ->withPivot(['quantity', 'inclusion', 'is_addon', 'custom_price'])
+            ->withPivot(['quantity', 'is_addon', 'custom_price'])
             ->withTimestamps();
     }
 

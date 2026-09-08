@@ -123,7 +123,7 @@ Umpan balik pemakaian, 2026-09-08. Merevisi BR-09, menambah catatan presentasi p
 | G3 | Kartu GL berdiri sendiri dihapus | ✅ | Kolom tabel jadi **Settlement**; alur 3 langkah tampil sebagai baris ekspansi di bawah terminnya |
 | G4 | Progres pembayaran tidak dobel-hitung | ✅ | `totalPaid`/`totalTerms` murni dari payment terms |
 | G5 | Activity Log bahasa Indonesia | ✅ | `App\Support\ActivityDescriber` + `ActivityLog::describe()`; slug di DB tidak diubah, `ActivityLogTest` tetap hijau tanpa disentuh |
-| G6 | Field Inclusion | ✅ | `items.inclusion` (katalog) + `deal_items.inclusion` (override per deal); fallback di `DealItem::effectiveInclusion()` |
+| G6 | Field Inclusion | ✅ | `items.inclusion` (blurb katalog) + `deals.inclusion` (satu blok per deal). Override per-item sempat dibuat lalu **dicabut** atas umpan balik — textarea di tiap baris item membuat wizard tidak terpakai |
 | G7 | Mask angka uang | ✅ | `<x-money-input>` + komponen Alpine di `resources/js/app.js`; `Money::plain()` membuang `,00` di sumbernya. Prop `money` milik Mary tidak dipakai — butuh bundel JS Mary yang tidak di-import proyek ini |
 | G8 | Item terpilih dikelompokkan | ✅ | `selectedItemKeys` / `availableItemKeys`; search hanya menyaring grup "Other Items"; urutan `$items` tidak diubah karena `wire:model` terikat indeks |
 
@@ -183,7 +183,7 @@ WS-C first because a populated catalog makes WS-A and WS-B verifiable by hand. W
 | Inclusion katalog + override (WS-G) | `ItemInclusionTest` | ✅ 6 tests |
 | Pengelompokan item & format uang (WS-G) | `DealFormGroupingTest`, `WizardRenderSmokeTest` | ✅ 8 tests |
 
-**Baseline:** 180 tests / 470 assertions green; PHPStan level 7 clean; Pint clean.
+**Baseline:** 180 tests / 473 assertions green; PHPStan level 7 clean; Pint clean.
 
 ---
 

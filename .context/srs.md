@@ -167,8 +167,8 @@ packages (id, name, default_price_idr, default_price_usd?, quota?)
 items (id, name, type?, inclusion?, quota?, default_price_idr?, default_price_usd?, requires_material)
 package_item (package_id, item_id, quantity)   -- many-to-many, quantity = units bundled
 deals (id, deal_number UNIQUE, doctor_id, sponsor_id, package_id?, currency, subtotal,
-       final_price, status [draft|finalized])
-deal_items (deal_id, item_id, quantity, inclusion?, is_addon, custom_price?)  -- many-to-many w/ pivot casts
+       inclusion?, final_price, status [draft|finalized])
+deal_items (deal_id, item_id, quantity, is_addon, custom_price?)  -- many-to-many w/ pivot casts
 payment_terms (id, deal_id, description, due_date, amount, notes?, status [pending|paid],
                proof_*, verified_at?, verified_by_id?)
 guarantee_letters (id, payment_term_id UNIQUE, status [uploaded|scheduled|paid],
@@ -188,7 +188,7 @@ activity_logs (id, deal_id, user_id?, action, details JSON, created_at)
 - Catalog prices are stored **per currency** (`default_price_idr` / `default_price_usd`), not converted. There is no exchange rate in the system, so historical prices cannot drift.
 - `deals.subtotal` is computed from the catalog at save time and stored for comparison; `deals.final_price` remains the authoritative agreed figure.
 - `items.quota` / `packages.quota` are **nullable** — NULL means unlimited. Quota is consumed by **finalized** deals only (`App\Services\QuotaService`), so two drafts may hold the last slot but only one can finalize into it.
-- `items.inclusion` is the catalog description of what the sponsor gets; `deal_items.inclusion` overrides it for one deal, and **NULL (or blank) falls back to the catalog text** — the rule lives in `DealItem::effectiveInclusion()`.
+- Inclusion lives at **two levels, and only two**: `items.inclusion` is the catalog blurb for a single item (shown wherever that item is listed), and `deals.inclusion` is one free-form block describing what the sponsor gets on that deal. There is deliberately **no per-deal-per-item override** — a textarea on every line item made the wizard unusable, so the deal-level field is the single place J4U writes this.
 - `guarantee_letters.payment_term_id` is **unique**: a term is settled either by a direct transfer proof or by at most one guarantee letter. The letter stores no amount — it guarantees the term's own amount.
 - `package_item.quantity` and `deal_items.quantity` (both `UNSIGNED INT DEFAULT 1`) carry unit counts: a tier bundles N units of an item (Diamond = 5 booths, 15 registrations, every tier 2 T-Banner points), and a deal records the units actually taken. A deal's package items inherit the tier's quantity; add-on quantities are chosen per deal.
 - `activity_logs.details` is a JSON object; for updates it is a `field => {old, new}` map; for creates it mirrors the model attributes. `created_at` only (no `updated_at`).

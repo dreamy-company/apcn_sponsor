@@ -17,7 +17,8 @@ final readonly class DealData
      * @param  string  $currency  Currency code the deal is transacted in (IDR|USD).
      * @param  string  $subtotal  Accumulated rate-card value of package + add-ons (BR-07).
      * @param  string  $finalPrice  Agreed final price — authoritative, manually entered (BR-02).
-     * @param  array<int, array{item_id: int, quantity: int, inclusion: string|null, is_addon: bool, custom_price: string|null}>  $items
+     * @param  string|null  $inclusion  What the sponsor gets, written once for the deal.
+     * @param  array<int, array{item_id: int, quantity: int, is_addon: bool, custom_price: string|null}>  $items
      * @param  array<int, array{id: int|null, description: string, due_date: string, amount: string, notes: string|null}>  $paymentTerms
      */
     public function __construct(
@@ -29,6 +30,7 @@ final readonly class DealData
         public ?int $packageId,
         public string $currency,
         public string $subtotal,
+        public ?string $inclusion,
         public string $finalPrice,
         public array $items,
         public array $paymentTerms,

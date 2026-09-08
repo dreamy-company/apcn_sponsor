@@ -149,7 +149,7 @@ class ItemQuantityTest extends TestCase
             ->set('packageId', null)
             ->set('finalPrice', '1000')
             ->set('items', [
-                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => null, 'quantity' => 7, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => '100'],
+                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => null, 'quantity' => 7, 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => '100'],
             ])
             ->set('paymentTerms', [
                 ['id' => null, 'description' => 'Lunas', 'due_date' => '2027-01-15', 'amount' => '1000', 'notes' => ''],

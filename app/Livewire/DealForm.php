@@ -61,12 +61,15 @@ class DealForm extends Component
     /** Currency the deal is transacted in (IDR|USD). */
     public string $currency = Currency::IDR->value;
 
+    /** What the sponsor gets on this deal — one block for the whole deal. */
+    public string $inclusion = '';
+
     public string $finalPrice = '';
 
     /** Filters the item grid; never mutates $items, so hidden rows keep their state. */
     public string $itemSearch = '';
 
-    /** @var array<int, array{item_id: int, name: string, type: string|null, quota: int|null, quantity: int, inclusion: string, catalog_inclusion: string, is_addon: bool, checked: bool, custom_price: string}> */
+    /** @var array<int, array{item_id: int, name: string, type: string|null, quota: int|null, quantity: int, catalog_inclusion: string, is_addon: bool, checked: bool, custom_price: string}> */
     public array $items = [];
 
     /** @var array<int, array{id: int|null, description: string, due_date: string, amount: string, notes: string}> */
@@ -133,6 +136,7 @@ class DealForm extends Component
             $this->picContact = $deal->sponsor->pic_contact;
             $this->packageId = $deal->package_id;
             $this->currency = $deal->currency->value;
+            $this->inclusion = $deal->inclusion ?? '';
             $this->finalPrice = Money::plain($deal->final_price);
 
             $this->paymentTerms = $deal->paymentTerms()->get()
@@ -152,7 +156,6 @@ class DealForm extends Component
                     $item->id => [
                         'is_addon' => (bool) $pivot->is_addon,
                         'quantity' => max(1, (int) $pivot->quantity),
-                        'inclusion' => $pivot->inclusion ?? '',
                         'custom_price' => Money::plain($pivot->custom_price),
                     ],
                 ];
@@ -480,7 +483,6 @@ class DealForm extends Component
                 $row['checked'] = $current[$row['item_id']]['checked'];
                 $row['custom_price'] = $current[$row['item_id']]['custom_price'];
                 $row['quantity'] = $current[$row['item_id']]['quantity'];
-                $row['inclusion'] = $current[$row['item_id']]['inclusion'];
             }
 
             return $row;
@@ -533,7 +535,6 @@ class DealForm extends Component
             ->map(fn (array $row): array => [
                 'item_id' => (int) $row['item_id'],
                 'quantity' => max(1, (int) $row['quantity']),
-                'inclusion' => trim($row['inclusion']) !== '' ? $row['inclusion'] : null,
                 'is_addon' => (bool) $row['is_addon'],
                 'custom_price' => $row['custom_price'] !== '' ? (string) $row['custom_price'] : null,
             ])
@@ -568,6 +569,7 @@ class DealForm extends Component
             packageId: $validated['packageId'],
             currency: $this->currencyEnum()->value,
             subtotal: (string) $this->subtotal(),
+            inclusion: trim($this->inclusion) !== '' ? $this->inclusion : null,
             finalPrice: $validated['finalPrice'],
             items: $items,
             paymentTerms: $terms,
@@ -698,7 +700,6 @@ class DealForm extends Component
                 $row['item_id'] => [
                     'is_addon' => $row['is_addon'],
                     'quantity' => $row['quantity'],
-                    'inclusion' => $row['inclusion'],
                     'custom_price' => $row['custom_price'],
                 ],
             ])
@@ -717,7 +718,7 @@ class DealForm extends Component
     }
 
     /**
-     * @param  array<int, array{is_addon: bool, custom_price: string, quantity?: int, inclusion?: string}>|null  $dealItemMap
+     * @param  array<int, array{is_addon: bool, custom_price: string, quantity?: int}>|null  $dealItemMap
      */
     protected function rebuildItems(?array $dealItemMap = null): void
     {
@@ -751,9 +752,6 @@ class DealForm extends Component
                     'quantity' => $inDeal
                         ? max(1, (int) ($dealItemMap[$item->id]['quantity'] ?? 1))
                         : ($inPackage ? $packageQuantities[$item->id] : 1),
-                    // Blank means "inherit the catalog text"; catalog_inclusion is
-                    // kept alongside purely so the form can show what that is.
-                    'inclusion' => $inDeal ? ($dealItemMap[$item->id]['inclusion'] ?? '') : '',
                     'catalog_inclusion' => $item->inclusion ?? '',
                     'is_addon' => $isAddon,
                     'checked' => $inDeal || ! $isAddon,
@@ -784,7 +782,7 @@ class DealForm extends Component
 
         return match ($step) {
             1 => Arr::only($rules, ['doctorId', 'companyName', 'brandName', 'picName', 'picContact']),
-            2 => Arr::only($rules, ['packageId', 'currency', 'finalPrice', 'items.*.checked', 'items.*.custom_price', 'items.*.quantity', 'items.*.inclusion']),
+            2 => Arr::only($rules, ['packageId', 'currency', 'finalPrice', 'inclusion', 'items.*.checked', 'items.*.custom_price', 'items.*.quantity']),
             3 => Arr::only($rules, ['paymentTerms.*.description', 'paymentTerms.*.due_date', 'paymentTerms.*.amount', 'paymentTerms.*.notes']),
             default => [],
         };
@@ -803,11 +801,11 @@ class DealForm extends Component
             'picContact' => ['required', 'string', 'max:255'],
             'packageId' => ['nullable', 'integer', Rule::exists('packages', 'id')],
             'currency' => ['required', Rule::enum(Currency::class)],
+            'inclusion' => ['nullable', 'string', 'max:5000'],
             'finalPrice' => ['required', 'numeric', 'min:0'],
             'items.*.checked' => ['boolean'],
             'items.*.custom_price' => ['nullable', 'numeric', 'min:0'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.inclusion' => ['nullable', 'string', 'max:2000'],
             'assets' => ['array'],
             'assets.*' => ['file', 'max:51200'],
             'paymentTerms.*.description' => ['required', 'string', 'max:255'],

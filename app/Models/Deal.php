@@ -23,12 +23,13 @@ use Illuminate\Support\Carbon;
  * @property int|null $package_id
  * @property Currency $currency
  * @property numeric-string $subtotal
+ * @property string|null $inclusion
  * @property numeric-string $final_price
  * @property DealStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['deal_number', 'doctor_id', 'sponsor_id', 'package_id', 'currency', 'subtotal', 'final_price', 'status'])]
+#[Fillable(['deal_number', 'doctor_id', 'sponsor_id', 'package_id', 'currency', 'subtotal', 'inclusion', 'final_price', 'status'])]
 #[ObservedBy([DealObserver::class])]
 class Deal extends Model
 {
@@ -58,7 +59,7 @@ class Deal extends Model
     {
         return $this->belongsToMany(Item::class, 'deal_items')
             ->using(DealItem::class)
-            ->withPivot(['quantity', 'inclusion', 'is_addon', 'custom_price'])
+            ->withPivot(['quantity', 'is_addon', 'custom_price'])
             ->withTimestamps();
     }
 

@@ -88,6 +88,14 @@
             </div>
         </x-card>
 
+        {{-- Inclusion --}}
+        @if ($deal->inclusion)
+            <x-card>
+                <h2 class="text-lg font-extrabold">{{ __('Inclusion') }}</h2>
+                <p class="mt-2 text-sm whitespace-pre-line text-base-content/70">{{ $deal->inclusion }}</p>
+            </x-card>
+        @endif
+
         {{-- Items --}}
         <x-card>
             <h2 class="text-lg font-extrabold">{{ __('Items') }}</h2>
@@ -107,9 +115,8 @@
                             <tr wire:key="item-{{ $item->id }}">
                                 <td class="font-semibold">
                                     {{ $item->name }}
-                                    @php $inclusion = $item->pivot->effectiveInclusion(); @endphp
-                                    @if ($inclusion)
-                                        <div class="mt-0.5 max-w-md text-xs font-normal whitespace-pre-line text-base-content/50">{{ $inclusion }}</div>
+                                    @if ($item->inclusion)
+                                        <div class="mt-0.5 max-w-md text-xs font-normal whitespace-pre-line text-base-content/50">{{ $item->inclusion }}</div>
                                     @endif
                                 </td>
                                 <td>×{{ $item->pivot->quantity }}</td>

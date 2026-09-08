@@ -74,7 +74,7 @@ class PaymentTermBalanceTest extends TestCase
             ->set('packageId', null)
             ->set('finalPrice', '100000000')
             ->set('items', [
-                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
+                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
             ])
             ->set('paymentTerms', [
                 ['id' => null, 'description' => 'DP', 'due_date' => '2027-01-15', 'amount' => '10000000', 'notes' => ''],

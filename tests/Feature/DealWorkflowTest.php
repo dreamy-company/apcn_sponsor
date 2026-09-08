@@ -40,8 +40,8 @@ class DealWorkflowTest extends TestCase
             ->set('packageId', $package->id)
             ->set('finalPrice', '250000000')
             ->set('items', [
-                ['item_id' => $baseItem->id, 'name' => $baseItem->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => false, 'checked' => true, 'custom_price' => ''],
-                ['item_id' => $addonItem->id, 'name' => $addonItem->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => '50000000'],
+                ['item_id' => $baseItem->id, 'name' => $baseItem->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'catalog_inclusion' => '', 'is_addon' => false, 'checked' => true, 'custom_price' => ''],
+                ['item_id' => $addonItem->id, 'name' => $addonItem->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => '50000000'],
             ])
             ->set('paymentTerms', [
                 ['id' => null, 'description' => 'Termin 1 (DP 50%)', 'due_date' => '2027-01-15', 'amount' => '125000000', 'notes' => 'DP on signing'],
