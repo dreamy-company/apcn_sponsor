@@ -127,6 +127,17 @@ Umpan balik pemakaian, 2026-09-08. Merevisi BR-09, menambah catatan presentasi p
 | G7 | Mask angka uang | ✅ | `<x-money-input>` + komponen Alpine di `resources/js/app.js`; `Money::plain()` membuang `,00` di sumbernya. Prop `money` milik Mary tidak dipakai — butuh bundel JS Mary yang tidak di-import proyek ini |
 | G8 | Item terpilih dikelompokkan | ✅ | `selectedItemKeys` / `availableItemKeys`; search hanya menyaring grup "Other Items"; urutan `$items` tidak diubah karena `wire:model` terikat indeks |
 
+### WS-H — Draft otomatis di wizard ✅ done
+
+| # | Task | Status | Notes |
+|---|---|---|---|
+| H1 | Snapshot wizard ke localStorage | ✅ | Komponen Alpine `dealDraft` menulis setelah tiap commit Livewire yang sukses; hanya untuk deal baru |
+| H2 | `restoreDraft()` defensif | ✅ | Semua nilai di-whitelist; dokter/paket/item dicocokkan ulang ke katalog, yang sudah terhapus diabaikan |
+| H3 | Binding `wire:model` deferred diperbaiki | ✅ | Field teks jadi `.blur`, dokter jadi `.live` — sebelumnya nilai yang diketik belum pernah sampai ke server sehingga mustahil di-snapshot |
+| H4 | Draft dibuang setelah deal tersimpan / dibuang manual | ✅ | Event `deal-draft-cleared` |
+
+**Diketahui:** file di field Assets tidak ikut tersimpan — objek file tidak bisa diserialisasi ke localStorage.
+
 ### WS-E — Stretch / Backlog (not committed)
 
 | # | Idea | Notes |
@@ -183,7 +194,7 @@ WS-C first because a populated catalog makes WS-A and WS-B verifiable by hand. W
 | Inclusion katalog + override (WS-G) | `ItemInclusionTest` | ✅ 6 tests |
 | Pengelompokan item & format uang (WS-G) | `DealFormGroupingTest`, `WizardRenderSmokeTest` | ✅ 8 tests |
 
-**Baseline:** 180 tests / 473 assertions green; PHPStan level 7 clean; Pint clean.
+**Baseline:** 190 tests / 516 assertions green; PHPStan level 7 clean; Pint clean.
 
 ---
 

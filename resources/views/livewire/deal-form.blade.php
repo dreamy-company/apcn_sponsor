@@ -1,4 +1,5 @@
-<section class="w-full">
+<section class="w-full"
+         x-data="dealDraft({ key: 'apcn.deal-draft.new', enabled: {{ $this->keepsDraft() ? 'true' : 'false' }} })">
     @php
         $steps = [
             1 => ['label' => __('Initiation'), 'desc' => __('Doctor & sponsor')],
@@ -14,6 +15,16 @@
     @endphp
 
     <div class="space-y-6">
+        @if ($draftRestored)
+            <div class="alert alert-info alert-soft flex flex-wrap items-center justify-between gap-3">
+                <span class="flex items-center gap-2">
+                    <x-icon name="o-arrow-path" class="h-5 w-5" />
+                    {{ __('We restored the draft you had open here. Nothing was submitted yet.') }}
+                </span>
+                <x-button :label="__('Start a blank form')" type="button" wire:click="discardDraft" class="btn-ghost btn-sm" />
+            </div>
+        @endif
+
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">
@@ -78,7 +89,7 @@
                             <div>
                                 <x-choices
                                     :label="__('Doctor (Initiator)')"
-                                    wire:model="doctorId"
+                                    wire:model.live="doctorId"
                                     :options="$doctorOptions"
                                     search-function="searchDoctors"
                                     searchable
@@ -92,12 +103,12 @@
                                     + {{ __('Add a new doctor') }}
                                 </button>
                             </div>
-                            <x-input :label="__('Company Name (PT)')" wire:model="companyName" placeholder="PT Contoh Sejahtera"
+                            <x-input :label="__('Company Name (PT)')" wire:model.blur="companyName" placeholder="PT Contoh Sejahtera"
                                      :hint="__('The legal entity the deal is signed with.')" />
-                            <x-input :label="__('Brand Name')" wire:model="brandName" :placeholder="__('Contoh Brand')"
+                            <x-input :label="__('Brand Name')" wire:model.blur="brandName" :placeholder="__('Contoh Brand')"
                                      :hint="__('One brand per deal.')" />
-                            <x-input :label="__('PIC Name')" wire:model="picName" :placeholder="__('Budi Santoso')" />
-                            <x-input :label="__('PIC Contact')" wire:model="picContact" placeholder="+62 812 3456 7890" />
+                            <x-input :label="__('PIC Name')" wire:model.blur="picName" :placeholder="__('Budi Santoso')" />
+                            <x-input :label="__('PIC Contact')" wire:model.blur="picContact" placeholder="+62 812 3456 7890" />
                         </div>
                     </div>
 
@@ -205,7 +216,7 @@
                                 <div>
                                     <x-money-input
                                         :label="__('Final Price').' ('.$currencyEnum->value.')'"
-                                        wire:model="finalPrice"
+                                        wire:model.blur="finalPrice"
                                         :currency="$currencyEnum"
                                         :hint="__('The price actually agreed with the doctor.')"
                                     />
@@ -288,8 +299,8 @@
                             @foreach ($paymentTerms as $index => $term)
                                 <div wire:key="term-{{ $index }}" class="rounded-box border border-base-300 p-3">
                                     <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-end">
-                                        <x-input :label="__('Description')" wire:model="paymentTerms.{{ $index }}.description" :placeholder="__('Termin 1 (DP 50%)')" />
-                                        <x-input :label="__('Due Date')" wire:model="paymentTerms.{{ $index }}.due_date" type="date" />
+                                        <x-input :label="__('Description')" wire:model.blur="paymentTerms.{{ $index }}.description" :placeholder="__('Termin 1 (DP 50%)')" />
+                                        <x-input :label="__('Due Date')" wire:model.blur="paymentTerms.{{ $index }}.due_date" type="date" />
                                         <x-input
                                             :label="__('Amount').' ('.$currencyEnum->value.')'"
                                             wire:model.live.debounce.400ms="paymentTerms.{{ $index }}.amount"
@@ -300,7 +311,7 @@
                                     <div class="mt-3 flex items-end gap-2">
                                         <x-textarea
                                             :label="__('Notes')"
-                                            wire:model="paymentTerms.{{ $index }}.notes"
+                                            wire:model.blur="paymentTerms.{{ $index }}.notes"
                                             rows="2"
                                             class="grow"
                                             :placeholder="__('Optional context for this milestone.')"

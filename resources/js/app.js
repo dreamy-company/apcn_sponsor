@@ -93,3 +93,103 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 });
+
+/**
+ * Keeps the New Deal wizard alive across an accidental refresh.
+ *
+ * Livewire holds form state on the server and drops it when the page reloads,
+ * so we mirror the fields into localStorage after every successful round trip
+ * and hand them back on the next mount. Only new deals are stored — an edit is
+ * already persisted, and replaying a stale draft over it would be wrong.
+ *
+ * Uploaded files cannot be serialised, so assets are deliberately not kept.
+ */
+document.addEventListener('alpine:init', () => {
+    window.Alpine.data('dealDraft', (config = {}) => ({
+        storageKey: config.key || 'apcn.deal-draft',
+        enabled: config.enabled !== false,
+        // Fields worth restoring. Anything else (search text, modal flags,
+        // upload handles) is transient.
+        fields: [
+            'doctorId', 'companyName', 'brandName', 'picName', 'picContact',
+            'packageId', 'currency', 'inclusion', 'finalPrice',
+            'paymentTerms', 'currentStep',
+        ],
+
+        init() {
+            if (!this.enabled) {
+                return;
+            }
+
+            this.restore();
+
+            // Persist after each committed Livewire update, so what we store is
+            // always what the server just accepted.
+            window.Livewire.hook('commit', ({ component, succeed }) => {
+                if (component.id !== this.$wire.id) {
+                    return;
+                }
+
+                succeed(() => queueMicrotask(() => this.persist()));
+            });
+
+            window.addEventListener('deal-draft-cleared', () => this.clear());
+        },
+
+        read() {
+            try {
+                const raw = window.localStorage.getItem(this.storageKey);
+
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                // Private mode, quota, or corrupted JSON — a draft is a
+                // convenience, never a reason to break the form.
+                return null;
+            }
+        },
+
+        restore() {
+            const draft = this.read();
+
+            if (!draft || typeof draft !== 'object') {
+                return;
+            }
+
+            this.$wire.call('restoreDraft', draft);
+        },
+
+        persist() {
+            const draft = {};
+
+            this.fields.forEach((field) => {
+                draft[field] = this.$wire.get(field);
+            });
+
+            // Only the parts of each item worth replaying.
+            draft.items = (this.$wire.get('items') || [])
+                .filter((row) => row.checked || row.custom_price !== '')
+                .map((row) => ({
+                    item_id: row.item_id,
+                    checked: row.checked,
+                    quantity: row.quantity,
+                    custom_price: row.custom_price,
+                }));
+
+            draft.savedAt = Date.now();
+
+            try {
+                window.localStorage.setItem(this.storageKey, JSON.stringify(draft));
+            } catch (e) {
+                // Out of quota or storage blocked: nothing to do but carry on.
+            }
+        },
+
+        clear() {
+            try {
+                window.localStorage.removeItem(this.storageKey);
+            } catch (e) {
+                // Ignore — see read().
+            }
+        },
+    }));
+});

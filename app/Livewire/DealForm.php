@@ -112,6 +112,9 @@ class DealForm extends Component
 
     public string $newPackageQuota = '';
 
+    /** Set once a saved draft has been pulled back in, so the UI can say so. */
+    public bool $draftRestored = false;
+
     /**
      * Doctor options for the searchable combobox. Plain arrays, not models —
      * Livewire has to round-trip this between requests.
@@ -525,6 +528,146 @@ class DealForm extends Component
         $this->paymentTerms[$index]['amount'] = (string) max(0, $remaining);
     }
 
+    /**
+     * Whether this form should keep a local draft. Only new deals: an edit is
+     * already persisted, and restoring a stale draft over it would be wrong.
+     */
+    public function keepsDraft(): bool
+    {
+        return $this->deal === null;
+    }
+
+    /**
+     * Re-apply a draft snapshot taken from localStorage after an accidental
+     * refresh. Everything is treated as untrusted: values are whitelisted, and
+     * item selections are matched back to the live catalog by id so a draft
+     * written before an item was added or removed cannot corrupt the form.
+     *
+     * @param  array<string, mixed>  $draft
+     */
+    public function restoreDraft(array $draft): void
+    {
+        if (! $this->keepsDraft()) {
+            return;
+        }
+
+        foreach (['companyName', 'brandName', 'picName', 'picContact', 'inclusion', 'finalPrice'] as $field) {
+            if (isset($draft[$field]) && is_scalar($draft[$field])) {
+                $this->{$field} = (string) $draft[$field];
+            }
+        }
+
+        if (isset($draft['doctorId']) && is_numeric($draft['doctorId'])) {
+            $doctorId = (int) $draft['doctorId'];
+
+            // Only keep it if that doctor still exists.
+            if (User::query()->whereKey($doctorId)->where('role', UserRole::Doctor->value)->exists()) {
+                $this->doctorId = $doctorId;
+            }
+        }
+
+        if (isset($draft['currency']) && Currency::tryFrom((string) $draft['currency']) !== null) {
+            $this->currency = (string) $draft['currency'];
+        }
+
+        $packageId = isset($draft['packageId']) && is_numeric($draft['packageId'])
+            ? (int) $draft['packageId']
+            : null;
+
+        $this->packageId = $packageId !== null && Package::query()->whereKey($packageId)->exists()
+            ? $packageId
+            : null;
+
+        $this->rebuildItems();
+        $this->applyDraftItems(is_array($draft['items'] ?? null) ? $draft['items'] : []);
+        $this->restoreDraftTerms(is_array($draft['paymentTerms'] ?? null) ? $draft['paymentTerms'] : []);
+
+        $step = isset($draft['currentStep']) && is_numeric($draft['currentStep'])
+            ? (int) $draft['currentStep']
+            : 1;
+
+        $this->currentStep = max(1, min($step, self::TOTAL_STEPS));
+        $this->maxVisited = max($this->currentStep, 1);
+
+        $this->draftRestored = true;
+        $this->refreshDoctorOptions();
+    }
+
+    /**
+     * Throw the draft away and start from an empty form.
+     */
+    public function discardDraft(): void
+    {
+        $this->reset([
+            'doctorId', 'companyName', 'brandName', 'picName', 'picContact',
+            'packageId', 'currency', 'inclusion', 'finalPrice', 'itemSearch',
+            'currentStep', 'maxVisited', 'draftRestored',
+        ]);
+
+        $this->paymentTerms = [$this->emptyTerm()];
+        $this->rebuildItems();
+        $this->refreshDoctorOptions();
+
+        $this->dispatch('deal-draft-cleared');
+    }
+
+    /**
+     * Re-apply saved per-item choices onto the freshly rebuilt catalog rows.
+     *
+     * @param  array<mixed>  $saved
+     */
+    protected function applyDraftItems(array $saved): void
+    {
+        $byId = [];
+
+        foreach ($saved as $row) {
+            if (is_array($row) && isset($row['item_id']) && is_numeric($row['item_id'])) {
+                $byId[(int) $row['item_id']] = $row;
+            }
+        }
+
+        $this->items = collect($this->items)->map(function (array $row) use ($byId): array {
+            $saved = $byId[(int) $row['item_id']] ?? null;
+
+            if ($saved === null) {
+                return $row;
+            }
+
+            $row['checked'] = (bool) ($saved['checked'] ?? $row['checked']);
+            $row['quantity'] = max(1, (int) ($saved['quantity'] ?? $row['quantity']));
+
+            if (isset($saved['custom_price']) && is_scalar($saved['custom_price'])) {
+                $row['custom_price'] = (string) $saved['custom_price'];
+            }
+
+            return $row;
+        })->all();
+    }
+
+    /**
+     * @param  array<mixed>  $saved
+     */
+    protected function restoreDraftTerms(array $saved): void
+    {
+        $terms = [];
+
+        foreach ($saved as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $terms[] = [
+                'id' => null,
+                'description' => (string) ($row['description'] ?? ''),
+                'due_date' => (string) ($row['due_date'] ?? ''),
+                'amount' => (string) ($row['amount'] ?? ''),
+                'notes' => (string) ($row['notes'] ?? ''),
+            ];
+        }
+
+        $this->paymentTerms = $terms !== [] ? $terms : [$this->emptyTerm()];
+    }
+
     public function save(): void
     {
         $validated = $this->validate();
@@ -584,6 +727,10 @@ class DealForm extends Component
         foreach ($this->assets as $file) {
             app(StoreDealAssetAction::class)->execute($deal, $file, $uploaderId);
         }
+
+        // The deal is persisted now, so the local draft must not linger and be
+        // restored over the next new deal.
+        $this->dispatch('deal-draft-cleared');
 
         session()->flash('status', $this->deal ? 'Deal updated.' : 'Deal created.');
 
