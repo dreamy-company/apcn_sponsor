@@ -53,6 +53,55 @@ class WizardRenderSmokeTest extends TestCase
         $this->assertStringContainsString('Inclusion', $html);
     }
 
+    public function test_the_footer_navigation_renders_on_every_step(): void
+    {
+        // A stray/missing </div> in the item markup once swallowed the footer,
+        // leaving the wizard with no way forward. Guard the whole path.
+        $this->actingAs(User::factory()->j4u()->create());
+
+        $doctor = User::factory()->doctor()->create();
+        $item = Item::factory()->create();
+        $package = Package::factory()->create();
+        $package->items()->attach($item->id, ['quantity' => 1]);
+
+        $component = Livewire::test(DealForm::class)
+            ->assertSee('Next: Package & Items')
+            ->set('doctorId', $doctor->id)
+            ->set('companyName', 'PT Nav')
+            ->set('brandName', 'Nav Brand')
+            ->set('picName', 'Sari')
+            ->set('picContact', '0812')
+            ->call('nextStep')
+            ->assertSet('currentStep', 2)
+            ->assertSee('Next: Payment Terms');
+
+        $component->set('packageId', $package->id)
+            ->set('finalPrice', '1000')
+            ->call('nextStep')
+            ->assertSet('currentStep', 3)
+            ->assertSee('Next: Summary')
+            ->set('paymentTerms', [
+                ['id' => null, 'description' => 'Lunas', 'due_date' => '2027-01-15', 'amount' => '1000', 'notes' => ''],
+            ])
+            ->call('nextStep')
+            ->assertSet('currentStep', 4)
+            ->assertSee('Create Deal');
+    }
+
+    public function test_the_rendered_markup_has_balanced_divs(): void
+    {
+        $this->actingAs(User::factory()->j4u()->create());
+
+        Item::factory()->count(3)->create();
+
+        $html = Livewire::test(DealForm::class)->html();
+
+        $opened = preg_match_all('/<div\b/', $html);
+        $closed = substr_count($html, '</div>');
+
+        $this->assertSame($closed, $opened, 'Unbalanced <div> tags in the wizard markup.');
+    }
+
     public function test_the_mask_switches_separators_with_the_currency(): void
     {
         $this->actingAs(User::factory()->j4u()->create());

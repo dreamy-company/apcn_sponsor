@@ -185,7 +185,6 @@
                                     @endforelse
                                 </div>
                             </div>
-                            </div>
 
                             {{-- Subtotal (computed) vs Final Price (negotiated) --}}
                             <div class="grid gap-4 sm:grid-cols-2">
