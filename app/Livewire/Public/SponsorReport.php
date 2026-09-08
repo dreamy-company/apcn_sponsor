@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Public;
 
+use App\Enums\Currency;
 use App\Models\Deal;
 use App\Models\Package;
 use App\Models\Setting;
@@ -60,9 +61,9 @@ class SponsorReport extends Component
 
         return view('livewire.public.sponsor-report', [
             'deals' => $deals,
-            'totalValue' => $deals->sum(fn ($deal): float => (float) $deal->final_price),
+            'totalValue' => $deals->where('currency', Currency::IDR)->sum(fn ($deal): float => (float) $deal->final_price),
             'topPackage' => $deals->map(fn (Deal $deal): ?Package => $deal->package)->filter()
-                ->sortByDesc(fn (Package $package): float => (float) $package->default_price)->first(),
+                ->sortByDesc(fn (Package $package): float => (float) $package->default_price_idr)->first(),
         ]);
     }
 }

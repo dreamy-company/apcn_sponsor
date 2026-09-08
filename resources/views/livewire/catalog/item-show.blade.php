@@ -17,9 +17,11 @@
             <x-card>
                 <h3 class="eyebrow text-base-content/50">{{ __('Default Price') }}</h3>
                 <div class="mt-2 text-2xl font-extrabold">
-                    {{ $item->default_price !== null ? 'Rp '.number_format((float) $item->default_price, 0, ',', '.') : '—' }}
+                    <x-money :amount="$item->default_price_idr" />
                 </div>
-                <p class="mt-1 text-sm text-base-content/60">{{ __('Add-on rate card') }}</p>
+                <p class="mt-1 text-sm text-base-content/60">
+                    <x-money :amount="$item->default_price_usd" currency="USD" /> · {{ __('Add-on rate card') }}
+                </p>
             </x-card>
             <x-card>
                 <h3 class="eyebrow text-base-content/50">{{ __('Quota') }}</h3>
@@ -60,7 +62,9 @@
                     <thead>
                         <tr>
                             <th>{{ __('Sponsor') }}</th>
+                            <th>{{ __('Brand') }}</th>
                             <th>{{ __('Deal #') }}</th>
+                            <th>{{ __('Qty') }}</th>
                             <th>{{ __('Type') }}</th>
                             <th>{{ __('Status') }}</th>
                         </tr>
@@ -71,9 +75,11 @@
                                 <td class="font-semibold">
                                     <a href="{{ route('sponsors.show', $deal->sponsor) }}" class="link link-primary" wire:navigate>{{ $deal->sponsor->company_name }}</a>
                                 </td>
+                                <td class="text-base-content/70">{{ $deal->sponsor->brand_name ?? '—' }}</td>
                                 <td>
                                     <a href="{{ route('deals.show', $deal) }}" class="link" wire:navigate>{{ $deal->deal_number }}</a>
                                 </td>
+                                <td>×{{ $deal->pivot->quantity }}</td>
                                 <td>
                                     <span class="badge badge-soft {{ $deal->pivot->is_addon ? 'badge-info' : 'badge-ghost' }}">
                                         {{ $deal->pivot->is_addon ? __('Add-on') : __('Package item') }}
@@ -86,7 +92,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No sponsors have taken this item yet.') }}</td></tr>
+                            <tr><td colspan="6" class="text-center text-base-content/50">{{ __('No sponsors have taken this item yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

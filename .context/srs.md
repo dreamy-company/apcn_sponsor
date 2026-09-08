@@ -25,7 +25,9 @@ In scope:
 - Dashboard / final summary (role-scoped)
 - Strict Role-Based Access Control (RBAC)
 
-Out of scope (future): public sponsor portal, invoicing/POS integration, document/asset upload storage, notifications.
+Out of scope (future): invoicing/POS integration, notifications.
+
+> **Scope amendments (v2.1).** Three areas previously listed as out of scope have since shipped and are now in scope: the **public sponsor/doctor portal**, and **document/asset upload storage** (deal assets, payment transfer proofs, guarantee letters). Added in the same revision: sponsor **brand names**, a computed **subtotal**, **USD** as a second currency, **guarantee letters**, and **inventory quotas** with sold/remaining reporting.
 
 ### 1.3 Definitions & Abbreviations
 
@@ -41,7 +43,11 @@ Out of scope (future): public sponsor portal, invoicing/POS integration, documen
 | **PIC** | Person in Charge (sponsor contact). |
 | **Material** | Sponsor asset due before/at the event (logo, video, booth design). |
 | **Activity Log** | Immutable audit trail of every change on a deal. |
-| **IDR** | Indonesian Rupiah, the only currency supported. |
+| **IDR** | Indonesian Rupiah. Default currency; displayed `Rp 1.000.000`. |
+| **USD** | US Dollar. Alternative deal currency; displayed `$1,000,000.00`. A deal is transacted in exactly one currency. |
+| **Brand** | The commercial brand a deal is signed under. A company (PT) may hold several brands; a deal names exactly one. |
+| **Subtotal** | Accumulated catalog value of a deal's package + add-ons. Informational; distinct from the agreed final price. |
+| **Guarantee Letter** | *Surat jaminan* — a committed amount with its own payment date, settled by a transfer proof. |
 
 ---
 
@@ -154,15 +160,20 @@ Requirements are tagged **FR-<n>**. Priority: **M** (must), **S** (should), **C*
 ```
 users (id, name, role [j4u|doctor], email, password, ...auth columns)
   └─< doctor_id
-sponsors (id, company_name, pic_name, pic_contact)
+sponsors (id, company_name, brand_name?, pic_name, pic_contact)
   └─< sponsor_id
-packages (id, name, default_price)
+packages (id, name, default_price_idr, default_price_usd?, quota?)
   └─< package_id (nullable)
-items (id, name, type?, requires_material)
-package_item (package_id, item_id)          -- many-to-many
-deals (id, deal_number UNIQUE, doctor_id, sponsor_id, package_id?, final_price, status [draft|finalized])
-deal_items (deal_id, item_id, is_addon, custom_price?)  -- many-to-many w/ pivot casts
-payment_terms (id, deal_id, description, due_date, amount, status [pending|paid])
+items (id, name, type?, inclusion?, quota?, default_price_idr?, default_price_usd?, requires_material)
+package_item (package_id, item_id, quantity)   -- many-to-many, quantity = units bundled
+deals (id, deal_number UNIQUE, doctor_id, sponsor_id, package_id?, currency, subtotal,
+       final_price, status [draft|finalized])
+deal_items (deal_id, item_id, quantity, inclusion?, is_addon, custom_price?)  -- many-to-many w/ pivot casts
+payment_terms (id, deal_id, description, due_date, amount, notes?, status [pending|paid],
+               proof_*, verified_at?, verified_by_id?)
+guarantee_letters (id, payment_term_id UNIQUE, status [uploaded|scheduled|paid],
+                   payment_due_date?, doc_*, proof_*, verified_at?, verified_by_id?)
+deal_assets (id, deal_id, disk, path, original_name, name?, mime_type?, size, uploaded_by_id?)
 material_deadlines (id, deal_id, item_id, material_name, due_date?, status [pending|received], received_at?)
 activity_logs (id, deal_id, user_id?, action, details JSON, created_at)
 ```
@@ -172,6 +183,14 @@ activity_logs (id, deal_id, user_id?, action, details JSON, created_at)
 - `deals.package_id` is **nullable** — a deal may be built from custom items only.
 - `material_deadlines.due_date` is **nullable**: deadlines are set by J4U after the checklist is generated (they are not known at finalize time). This deviates from the PRD's implied non-null and is documented in the migration comment.
 - `deal_items` uses a dedicated pivot model `App\Models\DealItem` so `is_addon` (boolean) and `custom_price` (decimal:2) are properly cast.
+- A sponsor is identified by the **pair** (`company_name`, `brand_name`): two brands of the same PT are two sponsor rows, so their deals do not aggregate together.
+- `sponsors.brand_name` is **nullable** in the schema for backfill of pre-existing rows; the UI requires it on every new deal.
+- Catalog prices are stored **per currency** (`default_price_idr` / `default_price_usd`), not converted. There is no exchange rate in the system, so historical prices cannot drift.
+- `deals.subtotal` is computed from the catalog at save time and stored for comparison; `deals.final_price` remains the authoritative agreed figure.
+- `items.quota` / `packages.quota` are **nullable** — NULL means unlimited. Quota is consumed by **finalized** deals only (`App\Services\QuotaService`), so two drafts may hold the last slot but only one can finalize into it.
+- `items.inclusion` is the catalog description of what the sponsor gets; `deal_items.inclusion` overrides it for one deal, and **NULL (or blank) falls back to the catalog text** — the rule lives in `DealItem::effectiveInclusion()`.
+- `guarantee_letters.payment_term_id` is **unique**: a term is settled either by a direct transfer proof or by at most one guarantee letter. The letter stores no amount — it guarantees the term's own amount.
+- `package_item.quantity` and `deal_items.quantity` (both `UNSIGNED INT DEFAULT 1`) carry unit counts: a tier bundles N units of an item (Diamond = 5 booths, 15 registrations, every tier 2 T-Banner points), and a deal records the units actually taken. A deal's package items inherit the tier's quantity; add-on quantities are chosen per deal.
 - `activity_logs.details` is a JSON object; for updates it is a `field => {old, new}` map; for creates it mirrors the model attributes. `created_at` only (no `updated_at`).
 
 ### 4.3 Enumerations (PHP backed enums)
@@ -182,6 +201,8 @@ activity_logs (id, deal_id, user_id?, action, details JSON, created_at)
 | `App\Enums\DealStatus` | `draft`, `finalized` |
 | `App\Enums\PaymentStatus` | `pending`, `paid` |
 | `App\Enums\MaterialStatus` | `pending`, `received` |
+| `App\Enums\Currency` | `IDR`, `USD` |
+| `App\Enums\GuaranteeLetterStatus` | `uploaded`, `scheduled`, `paid` |
 
 ---
 
@@ -189,10 +210,16 @@ activity_logs (id, deal_id, user_id?, action, details JSON, created_at)
 
 1. **BR-01 — RBAC:** Only J4U may write. Doctors are strictly read-only and scoped to their own deals.
 2. **BR-02 — Customization:** A deal's item set may diverge from its base package (removals + add-ons). The agreed `final_price` is authoritative and manually input; it is not auto-computed.
-3. **BR-03 — Payment terms:** The sum of all term amounts need not equal the final price (partial terms are allowed at J4U's discretion).
+3. **BR-03 — Payment terms (revised v2.1):** ~~The sum of all term amounts need not equal the final price.~~ A **draft** may carry unbalanced terms (the wizard shows the running difference), but the sum **must** equal `final_price` to finalize — see BR-08.
 4. **BR-04 — Material checklist:** Generated once per item at finalization; never auto-removed; re-finalizing must not create duplicates.
 5. **BR-05 — Finalization:** Only a finalized deal triggers material generation. Editing is allowed while `draft`; after `finalized` the deal is immutable via the UI (J4U only sees read-only summary + status toggles).
-6. **BR-06 — Audit:** Every create/update is logged with actor and timestamp. No UI-level deletion of activity logs.
+6. **BR-06 — Audit:** Every create/update is logged with actor and timestamp. No UI-level deletion of activity logs. The stored `action` slug and `details` payload are machine-readable and **must not** be reworded for display; the UI renders them through `App\Support\ActivityDescriber`, which is presentation only.
+7. **BR-07 — Subtotal:** `subtotal` is the accumulated catalog value of the base package plus every selected **add-on**; items already included in a package contribute nothing, as the tier price covers them. It is informational and never overrides BR-02: `final_price` stays manual and authoritative. The wizard reports the difference between the two.
+8. **BR-08 — Balanced terms:** Payment terms must sum to `final_price` (to the cent) before a deal may be finalized. Enforced authoritatively in `FinalizeDealAction`, which throws `UnbalancedPaymentTermsException`. Drafts are exempt.
+9. **BR-09 — Guarantee letter (revised v2.2):** A guarantee letter is a **way of settling a payment term**, not a deal-level instrument. At most one per term, progressing `uploaded → scheduled → paid`: the letter document is attached, a payment date is set (it may differ from the term's own due date), and on/after that date a transfer proof settles it. It carries **no amount of its own** — it guarantees the term's amount, so it is automatically part of the BR-08 sum and adds nothing to payment-progress figures. The former per-deal letter and its exclusion from BR-08 are withdrawn. Uploading the proof does not by itself mark the term paid; that stays a deliberate J4U action, as with a direct transfer.
+10. **BR-10 — Currency:** A deal is transacted in exactly one currency (IDR or USD). The catalog stores a price per currency and **no conversion is ever performed**, so figures from different currencies are never summed: aggregate reports present IDR and USD separately.
+11. **BR-11 — Quota:** Quota is counted from **finalized** deals only; drafts reserve nothing. **Item** quota is measured in **units**, not deals — a Diamond tier bundling 5 booths consumes 5 of the venue's 122, so a deal may exhaust an item on its own. **Package** quota remains a sponsor-slot count, since a deal has at most one base tier. The wizard blocks a selection whose units exceed what remains, and finalization re-checks authoritatively.
+12. **BR-12 — Verification:** A payment term or guarantee letter may be marked verified by J4U only once a transfer proof exists; the actor and timestamp are recorded, and re-uploading a proof clears any prior verification.
 
 ---
 
@@ -285,6 +312,12 @@ Traceability to the PRD's checklist, with current status:
 1. ~~Dashboard aggregate stats~~ — **done** (FR-26): `DashboardService` + `Dashboard` component, role-scoped, covered by `DashboardStatsTest`.
 2. **Database seeding** for the sponsor catalog (Diamond/Platinum/White Gold tiers) — **done** (`SponsorCatalogSeeder`), incl. demo users `j4u@apcn2027.local` / `doctor@apcn2027.local` and one finalized example deal.
 3. **Edit-after-finalize policy** is intentionally restricted (BR-05); reopening finalized deals is a future decision.
+4. **Prospectus contradictions awaiting client confirmation** (catalog seeded with the add-on-table figure where they disagree):
+   - Spotlight Session $15,000 (add-on table) vs $10,000 (value matrix); Private Meeting Room $15,000 vs $29,750; Welcome Reception $15,000 vs $10,000.
+   - T-Banner: 40 total − 14 used = 26, but the prospectus states 30 remaining (seeded as 30).
+   - Charging Station, Auditorium Hall 4 and Meeting Room are printed in the add-on catalog yet also marked "not sold separately / fully allocated"; all three remain purchasable in the app.
+   - Delegate Bag and Registration Page + QR are marked **Sole** but carry quota 3.
+   - Quotas for tier-bundled items (Faculty Lounge, Doctor Lounge, Event Mascot, WiFi, Homepage Banner, Mobile App Banner, LED Screen Lower) were inferred from tier max-sponsor counts; the prospectus prints no quantity for them.
 4. ~~Production DB target verification~~ — **done**: migrations, seed, and the full test suite verified on **MySQL 8.0.30** (`phpunit.mysql.xml`). No Docker: app runs via Laragon directly.
 5. **User management** — **done** (FR-27…FR-30): J4U-only `/users` module (list/create/edit + guards), covered by `UserManagementTest`.
 

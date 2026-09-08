@@ -19,7 +19,8 @@ class PackageFactory extends Factory
     {
         return [
             'name' => fake()->unique()->randomElement(['Diamond', 'Platinum', 'White Gold', 'Gold', 'Silver']),
-            'default_price' => fake()->numberBetween(50_000_000, 500_000_000),
+            'default_price_idr' => $idr = fake()->numberBetween(50_000_000, 500_000_000),
+            'default_price_usd' => round($idr / 18_100, 2),
         ];
     }
 }

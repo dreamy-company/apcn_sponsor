@@ -13,11 +13,12 @@ class CreatePackageAction
         return DB::transaction(function () use ($data): Package {
             $package = Package::create([
                 'name' => $data->name,
-                'default_price' => $data->defaultPrice,
+                'default_price_idr' => $data->defaultPriceIdr,
+                'default_price_usd' => $data->defaultPriceUsd,
                 'quota' => $data->quota,
             ]);
 
-            $package->items()->sync($data->itemIds);
+            $package->items()->sync($data->itemPivot());
 
             return $package;
         });

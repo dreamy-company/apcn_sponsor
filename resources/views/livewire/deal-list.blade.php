@@ -49,7 +49,7 @@
                                 <td>{{ $deal->sponsor->company_name }}</td>
                                 <td>{{ $deal->doctor->name }}</td>
                                 <td><x-tier-badge :package="$deal->package" /></td>
-                                <td>Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</td>
+                                <td><x-money :amount="$deal->final_price" :currency="$deal->currency" /></td>
                                 <td>
                                     <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">
                                         {{ $deal->status->label() }}

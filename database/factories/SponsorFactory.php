@@ -19,6 +19,7 @@ class SponsorFactory extends Factory
     {
         return [
             'company_name' => fake()->company(),
+            'brand_name' => fake()->unique()->company(),
             'pic_name' => fake()->name(),
             'pic_contact' => fake()->phoneNumber(),
         ];

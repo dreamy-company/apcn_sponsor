@@ -21,7 +21,7 @@ class DealWizardTest extends TestCase
 
         Livewire::test(DealForm::class)
             ->call('nextStep')
-            ->assertHasErrors(['doctorId', 'companyName', 'picName', 'picContact'])
+            ->assertHasErrors(['doctorId', 'companyName', 'brandName', 'picName', 'picContact'])
             ->assertSet('currentStep', 1);
     }
 
@@ -34,6 +34,7 @@ class DealWizardTest extends TestCase
         Livewire::test(DealForm::class)
             ->set('doctorId', $doctor->id)
             ->set('companyName', 'PT Contoh')
+            ->set('brandName', 'Contoh Brand')
             ->set('picName', 'Budi')
             ->set('picContact', '0812')
             ->call('nextStep')          // → step 2
@@ -58,12 +59,13 @@ class DealWizardTest extends TestCase
 
         $doctor = User::factory()->doctor()->create();
         $item = Item::factory()->create();
-        $package = Package::factory()->create(['default_price' => 250_000_000]);
+        $package = Package::factory()->create(['default_price_idr' => 250_000_000]);
         $package->items()->attach($item->id);
 
         Livewire::test(DealForm::class)
             ->set('doctorId', $doctor->id)
             ->set('companyName', 'PT Contoh Sejahtera')
+            ->set('brandName', 'Contoh Brand')
             ->set('picName', 'Budi Santoso')
             ->set('picContact', '+62 812 0000 0000')
             ->call('nextStep')                       // → step 2
@@ -72,7 +74,7 @@ class DealWizardTest extends TestCase
             ->call('nextStep')                       // → step 3
             ->assertSet('currentStep', 3)
             ->set('paymentTerms', [
-                ['description' => 'Termin 1', 'due_date' => '2027-01-15', 'amount' => '250000000'],
+                ['id' => null, 'description' => 'Termin 1', 'due_date' => '2027-01-15', 'amount' => '250000000', 'notes' => ''],
             ])
             ->call('nextStep')                       // → step 4 (Summary)
             ->assertSet('currentStep', 4)

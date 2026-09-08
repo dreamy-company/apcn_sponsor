@@ -39,7 +39,7 @@
                                 <div class="text-xs text-base-content/50">{{ $deal->deal_number }}</div>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="font-semibold">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</span>
+                                <span class="font-semibold"><x-money :amount="$deal->final_price" :currency="$deal->currency" /></span>
                                 <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">
                                     {{ $deal->status->label() }}
                                 </span>

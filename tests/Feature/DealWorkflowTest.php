@@ -34,17 +34,18 @@ class DealWorkflowTest extends TestCase
         Livewire::test(DealForm::class)
             ->set('doctorId', $doctor->id)
             ->set('companyName', 'PT Contoh Sejahtera')
+            ->set('brandName', 'Contoh Brand')
             ->set('picName', 'Budi Santoso')
             ->set('picContact', '+62 812 0000 0000')
             ->set('packageId', $package->id)
             ->set('finalPrice', '250000000')
             ->set('items', [
-                ['item_id' => $baseItem->id, 'name' => $baseItem->name, 'type' => null, 'is_addon' => false, 'checked' => true, 'custom_price' => ''],
-                ['item_id' => $addonItem->id, 'name' => $addonItem->name, 'type' => null, 'is_addon' => true, 'checked' => true, 'custom_price' => '50000000'],
+                ['item_id' => $baseItem->id, 'name' => $baseItem->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => false, 'checked' => true, 'custom_price' => ''],
+                ['item_id' => $addonItem->id, 'name' => $addonItem->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => '50000000'],
             ])
             ->set('paymentTerms', [
-                ['description' => 'Termin 1 (DP 50%)', 'due_date' => '2027-01-15', 'amount' => '125000000'],
-                ['description' => 'Termin 2', 'due_date' => '2027-06-15', 'amount' => '125000000'],
+                ['id' => null, 'description' => 'Termin 1 (DP 50%)', 'due_date' => '2027-01-15', 'amount' => '125000000', 'notes' => 'DP on signing'],
+                ['id' => null, 'description' => 'Termin 2', 'due_date' => '2027-06-15', 'amount' => '125000000', 'notes' => ''],
             ])
             ->call('save');
 
@@ -60,6 +61,8 @@ class DealWorkflowTest extends TestCase
         $this->assertSame('50000000.00', $addon->pivot->custom_price);
 
         $this->assertSame(2, $deal->paymentTerms()->count());
+        $this->assertSame('Contoh Brand', $deal->sponsor->brand_name);
+        $this->assertSame('DP on signing', $deal->paymentTerms()->orderBy('id')->first()->notes);
 
         // Draft deals must not generate materials yet.
         $this->assertSame(0, $deal->materialDeadlines()->count());
@@ -78,8 +81,9 @@ class DealWorkflowTest extends TestCase
         $materialItem = Item::factory()->withMaterial()->create();
         $plainItem = Item::factory()->withoutMaterial()->create();
 
-        $deal = Deal::factory()->create();
+        $deal = Deal::factory()->create(['final_price' => 100_000_000]);
         $deal->items()->attach([$materialItem->id, $plainItem->id]);
+        PaymentTerm::factory()->create(['deal_id' => $deal->id, 'amount' => 100_000_000]);
 
         Livewire::test(DealShow::class, ['deal' => $deal])
             ->call('finalize');

@@ -95,14 +95,14 @@ class CatalogTest extends TestCase
 
         Livewire::test(CatalogPackageForm::class)
             ->set('name', 'Diamond')
-            ->set('defaultPrice', '500000000')
+            ->set('defaultPriceIdr', '500000000')
             ->set('selectedItems', [$itemA->id, $itemB->id])
             ->call('save');
 
         $package = Package::where('name', 'Diamond')->first();
 
         $this->assertNotNull($package);
-        $this->assertSame('500000000.00', $package->default_price);
+        $this->assertSame('500000000.00', $package->default_price_idr);
         $this->assertSame(2, $package->items()->count());
     }
 
@@ -117,7 +117,7 @@ class CatalogTest extends TestCase
 
         Livewire::test(CatalogPackageForm::class, ['package' => $package])
             ->set('name', 'Diamond Plus')
-            ->set('defaultPrice', '550000000')
+            ->set('defaultPriceIdr', '550000000')
             ->set('selectedItems', [$itemB->id])
             ->call('save');
 

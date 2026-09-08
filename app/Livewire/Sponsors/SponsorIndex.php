@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sponsors;
 
+use App\Enums\Currency;
 use App\Models\Sponsor;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -43,7 +44,7 @@ class SponsorIndex extends Component
             'sponsors' => Sponsor::query()
                 ->with('deals.package')
                 ->withCount('deals')
-                ->withSum('deals', 'final_price')
+                ->withSum(['deals as deals_sum_final_price' => fn ($q) => $q->where('currency', Currency::IDR)], 'final_price')
                 ->when($this->search !== '', fn ($q) => $q->where('company_name', 'like', '%'.$this->search.'%'))
                 ->orderBy('company_name')
                 ->get(),

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\Currency;
 use App\Enums\DealStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Deal;
@@ -37,7 +38,7 @@ class SponsorshipReportService
                 ->has('deals')
                 ->with('deals.package')
                 ->withCount('deals')
-                ->withSum('deals', 'final_price')
+                ->withSum(['deals as deals_sum_final_price' => fn ($q) => $q->where('currency', Currency::IDR)], 'final_price')
                 ->orderByDesc('deals_sum_final_price')
                 ->orderBy('company_name')
                 ->get(),
@@ -45,7 +46,7 @@ class SponsorshipReportService
             'draftDeals' => $this->deals(DealStatus::Draft),
             'packageUptake' => Package::query()
                 ->withCount(['deals as taken_count' => fn ($q) => $q->where('status', DealStatus::Finalized->value)])
-                ->orderByDesc('default_price')
+                ->orderByDesc('default_price_idr')
                 ->get(),
             'itemUptake' => Item::query()
                 ->whereNotNull('quota')

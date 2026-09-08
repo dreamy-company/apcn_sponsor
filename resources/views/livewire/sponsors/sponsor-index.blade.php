@@ -39,7 +39,7 @@
                                     <div class="text-xs text-base-content/50">{{ $sponsor->pic_contact }}</div>
                                 </td>
                                 <td>{{ $sponsor->deals_count }}</td>
-                                <td>Rp {{ number_format((float) $sponsor->deals_sum_final_price, 0, ',', '.') }}</td>
+                                <td><x-money :amount="$sponsor->deals_sum_final_price ?? 0" /></td>
                                 <td>
                                     <div class="flex gap-1">
                                         <x-button icon="o-eye" :link="route('sponsors.show', $sponsor)" class="btn-ghost btn-sm btn-square" />

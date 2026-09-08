@@ -4,6 +4,7 @@ namespace App\Livewire\Sponsors;
 
 use App\Actions\Deal\DeleteDealAssetAction;
 use App\Actions\Deal\StoreDealAssetAction;
+use App\Enums\Currency;
 use App\Enums\PaymentStatus;
 use App\Models\Deal;
 use App\Models\DealAsset;
@@ -118,10 +119,10 @@ class SponsorShow extends Component
         return view('livewire.sponsors.sponsor-show', [
             'deals' => $deals,
             'items' => $items,
-            'totalValue' => $deals->sum(fn (Deal $d): float => (float) $d->final_price),
+            'totalValue' => $deals->where('currency', Currency::IDR)->sum(fn (Deal $d): float => (float) $d->final_price),
             'assetsCount' => $deals->sum(fn (Deal $d): int => $d->assets->count()),
             'topPackage' => $deals->map(fn (Deal $deal): ?Package => $deal->package)->filter()
-                ->sortByDesc(fn (Package $package): float => (float) $package->default_price)->first(),
+                ->sortByDesc(fn (Package $package): float => (float) $package->default_price_idr)->first(),
             'paidStatus' => PaymentStatus::Paid,
         ]);
     }

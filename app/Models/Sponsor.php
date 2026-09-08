@@ -12,12 +12,13 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property string $company_name
+ * @property string|null $brand_name
  * @property string $pic_name
  * @property string $pic_contact
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['company_name', 'pic_name', 'pic_contact'])]
+#[Fillable(['company_name', 'brand_name', 'pic_name', 'pic_contact'])]
 class Sponsor extends Model
 {
     /** @use HasFactory<SponsorFactory> */
@@ -38,7 +39,7 @@ class Sponsor extends Model
         return $this->deals
             ->map(fn (Deal $deal): ?Package => $deal->package)
             ->filter()
-            ->sortByDesc(fn (Package $package): float => (float) $package->default_price)
+            ->sortByDesc(fn (Package $package): float => (float) $package->default_price_idr)
             ->first();
     }
 }

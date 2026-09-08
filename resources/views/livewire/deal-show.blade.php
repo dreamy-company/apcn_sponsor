@@ -29,15 +29,20 @@
         <div class="grid gap-4 md:grid-cols-3">
             <x-card>
                 <h3 class="eyebrow text-base-content/50">{{ __('Final Price') }}</h3>
-                <div class="mt-2 text-2xl font-extrabold">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</div>
-                <p class="mt-1 text-sm text-base-content/60">{{ $deal->package?->name ?? __('No base package') }}</p>
+                <div class="mt-2 text-2xl font-extrabold"><x-money :amount="$deal->final_price" :currency="$deal->currency" /></div>
+                <p class="mt-1 text-sm text-base-content/60">
+                    {{ $deal->package?->name ?? __('No base package') }}
+                    @if ((float) $deal->subtotal > 0)
+                        · {{ __('subtotal') }} <x-money :amount="$deal->subtotal" :currency="$deal->currency" />
+                    @endif
+                </p>
             </x-card>
 
             <x-card>
                 <h3 class="eyebrow text-base-content/50">{{ __('Payment Progress') }}</h3>
                 <div class="mt-2 text-2xl font-extrabold">
-                    Rp {{ number_format((float) $totalPaid, 0, ',', '.') }}
-                    <span class="text-base font-normal text-base-content/50">/ Rp {{ number_format((float) $totalTerms, 0, ',', '.') }}</span>
+                    <x-money :amount="$totalPaid" :currency="$deal->currency" />
+                    <span class="text-base font-normal text-base-content/50">/ <x-money :amount="$totalTerms" :currency="$deal->currency" /></span>
                 </div>
                 <p class="mt-1 text-sm text-base-content/60">{{ $deal->paymentTerms->where('status', \App\Enums\PaymentStatus::Paid)->count() }} / {{ $deal->paymentTerms->count() }} {{ __('terms paid') }}</p>
             </x-card>
@@ -64,6 +69,10 @@
                     <div class="mt-1 text-sm font-semibold">{{ $deal->sponsor->company_name }}</div>
                 </div>
                 <div>
+                    <span class="eyebrow text-base-content/50">{{ __('Brand') }}</span>
+                    <div class="mt-1 text-sm font-semibold">{{ $deal->sponsor->brand_name ?? '—' }}</div>
+                </div>
+                <div>
                     <span class="eyebrow text-base-content/50">{{ __('PIC') }}</span>
                     <div class="mt-1 text-sm font-semibold">{{ $deal->sponsor->pic_name }}</div>
                     <div class="text-xs text-base-content/50">{{ $deal->sponsor->pic_contact }}</div>
@@ -88,6 +97,7 @@
                     <thead>
                         <tr>
                             <th>{{ __('Item') }}</th>
+                            <th>{{ __('Qty') }}</th>
                             <th>{{ __('Type') }}</th>
                             <th>{{ __('Custom Price') }}</th>
                         </tr>
@@ -95,16 +105,23 @@
                     <tbody>
                         @forelse ($deal->items as $item)
                             <tr wire:key="item-{{ $item->id }}">
-                                <td class="font-semibold">{{ $item->name }}</td>
+                                <td class="font-semibold">
+                                    {{ $item->name }}
+                                    @php $inclusion = $item->pivot->effectiveInclusion(); @endphp
+                                    @if ($inclusion)
+                                        <div class="mt-0.5 max-w-md text-xs font-normal whitespace-pre-line text-base-content/50">{{ $inclusion }}</div>
+                                    @endif
+                                </td>
+                                <td>×{{ $item->pivot->quantity }}</td>
                                 <td>
                                     <span class="badge badge-soft {{ $item->pivot->is_addon ? 'badge-info' : 'badge-ghost' }}">
                                         {{ $item->pivot->is_addon ? __('Add-on') : __('Package item') }}
                                     </span>
                                 </td>
-                                <td>{{ $item->pivot->custom_price !== null ? 'Rp '.number_format((float) $item->pivot->custom_price, 0, ',', '.') : '—' }}</td>
+                                <td><x-money :amount="$item->pivot->custom_price" :currency="$deal->currency" /></td>
                             </tr>
                         @empty
-                            <tr><td colspan="3" class="text-center text-base-content/50">{{ __('No items.') }}</td></tr>
+                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No items.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -203,17 +220,30 @@
                             <th>{{ __('Due Date') }}</th>
                             <th>{{ __('Amount') }}</th>
                             <th>{{ __('Status') }}</th>
-                            <th>{{ __('Transfer Proof') }}</th>
+                            <th>{{ __('Settlement') }}</th>
+                            <th>{{ __('Verified') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($deal->paymentTerms as $term)
-                            <tr wire:key="term-{{ $term->id }}">
+                            @php
+                                $letter = $term->guaranteeLetter;
+                                $isJ4u = auth()->user()->isJ4u();
+                                // A term is settled either by a direct transfer proof or by a
+                                // guarantee letter; verification always follows the proof.
+                                $proofHolder = $letter ?? $term;
+                            @endphp
+                            <tr wire:key="term-{{ $term->id }}" @class(['border-b-0' => $letter !== null])>
                                 <td class="font-semibold">{{ $term->description }}</td>
                                 <td>{{ $term->due_date->format('d M Y') }}</td>
-                                <td>Rp {{ number_format((float) $term->amount, 0, ',', '.') }}</td>
                                 <td>
-                                    @if (auth()->user()->isJ4u() && $term->status === \App\Enums\PaymentStatus::Pending)
+                                    <x-money :amount="$term->amount" :currency="$deal->currency" />
+                                    @if ($term->notes)
+                                        <div class="text-xs font-normal text-base-content/50">{{ $term->notes }}</div>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if ($isJ4u && $term->status === \App\Enums\PaymentStatus::Pending)
                                         <x-button
                                             :label="__('Mark Paid')"
                                             class="btn-soft btn-primary btn-xs"
@@ -227,13 +257,18 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if ($term->hasProof())
+                                    @if ($letter !== null)
+                                        <span class="badge badge-soft badge-info gap-1">
+                                            <x-icon name="o-document-check" class="h-3.5 w-3.5" /> {{ __('Guarantee Letter') }}
+                                        </span>
+                                        <div class="text-xs text-base-content/40">{{ $letter->status->label() }}</div>
+                                    @elseif ($term->hasProof())
                                         <div class="flex items-center gap-1">
                                             <button type="button" wire:click="downloadProof({{ $term->id }})" class="link link-primary inline-flex items-center gap-1 text-sm">
                                                 <x-icon name="o-paper-clip" class="h-4 w-4" /> {{ $term->proofDownloadName() }}
                                             </button>
                                             <span class="text-xs text-base-content/40">{{ $term->proofHumanSize() }}</span>
-                                            @if (auth()->user()->isJ4u())
+                                            @if ($isJ4u)
                                                 <x-button
                                                     icon="o-trash"
                                                     wire:click="deleteProof({{ $term->id }})"
@@ -242,19 +277,117 @@
                                                 />
                                             @endif
                                         </div>
-                                    @elseif (auth()->user()->isJ4u())
+                                    @elseif ($isJ4u)
+                                        {{-- No settlement yet: transfer now, or take a guarantee letter. --}}
                                         <form wire:submit="uploadProof({{ $term->id }})" class="flex flex-wrap items-end gap-2">
                                             <x-file wire:model="proofUploads.{{ $term->id }}" class="max-w-[11rem]" accept="image/*,application/pdf" />
                                             <x-button :label="__('Upload')" icon="o-arrow-up-tray" type="submit" class="btn-primary btn-xs" spinner="uploadProof({{ $term->id }})" />
                                             @error("proofUploads.{$term->id}") <div class="w-full text-xs text-error">{{ $message }}</div> @enderror
                                         </form>
+                                        <form wire:submit="saveGuaranteeLetter({{ $term->id }})" class="mt-2 flex flex-wrap items-end gap-2 border-t border-base-300 pt-2">
+                                            <x-file wire:model="glDocuments.{{ $term->id }}" class="max-w-[11rem]" accept="image/*,application/pdf" />
+                                            <x-button :label="__('Use guarantee letter')" icon="o-document-check" type="submit" class="btn-ghost btn-xs" spinner="saveGuaranteeLetter({{ $term->id }})" />
+                                            @error("glDocuments.{$term->id}") <div class="w-full text-xs text-error">{{ $message }}</div> @enderror
+                                        </form>
                                     @else
                                         <span class="text-base-content/40">—</span>
                                     @endif
                                 </td>
+                                <td>
+                                    @if ($proofHolder->isVerified())
+                                        <div class="flex items-center gap-1">
+                                            <span class="badge badge-soft badge-success gap-1">
+                                                <x-icon name="s-check-badge" class="h-3.5 w-3.5" /> {{ __('Verified') }}
+                                            </span>
+                                            @if ($isJ4u)
+                                                <x-button
+                                                    icon="o-x-mark"
+                                                    wire:click="{{ $letter ? 'verifyGuaranteeLetter' : 'verifyPaymentTerm' }}({{ $term->id }}, false)"
+                                                    class="btn-ghost btn-xs btn-square"
+                                                    :aria-label="__('Clear verification')"
+                                                />
+                                            @endif
+                                        </div>
+                                        <div class="text-xs text-base-content/40">
+                                            {{ $proofHolder->verifiedBy?->name }} · {{ $proofHolder->verified_at?->format('d M Y') }}
+                                        </div>
+                                    @elseif ($isJ4u && $proofHolder->hasProof())
+                                        <x-button
+                                            :label="__('Verify')"
+                                            icon="o-check-badge"
+                                            wire:click="{{ $letter ? 'verifyGuaranteeLetter' : 'verifyPaymentTerm' }}({{ $term->id }})"
+                                            class="btn-soft btn-success btn-xs"
+                                        />
+                                    @else
+                                        <span class="text-xs text-base-content/40">{{ __('Awaiting proof') }}</span>
+                                    @endif
+                                </td>
                             </tr>
+
+                            {{-- Guarantee letter: letter -> payment date -> transfer proof --}}
+                            @if ($letter !== null)
+                                <tr wire:key="term-gl-{{ $term->id }}">
+                                    <td colspan="6" class="pt-0">
+                                        <div class="grid gap-3 rounded-box bg-base-200 p-3 md:grid-cols-3">
+                                            <div>
+                                                <div class="eyebrow text-base-content/50">{{ __('1 · Letter') }}</div>
+                                                @if ($letter->hasDocument())
+                                                    <button type="button" wire:click="downloadGuaranteeLetter({{ $term->id }}, 'document')"
+                                                            class="link link-primary mt-1 inline-flex items-center gap-1 text-sm">
+                                                        <x-icon name="o-paper-clip" class="h-4 w-4" /> {{ $letter->documentDownloadName() }}
+                                                    </button>
+                                                    <div class="text-xs text-base-content/40">{{ $letter->documentHumanSize() }}</div>
+                                                @endif
+                                                @if ($isJ4u)
+                                                    <form wire:submit="saveGuaranteeLetter({{ $term->id }})" class="mt-2 flex flex-wrap items-end gap-2">
+                                                        <x-file wire:model="glDocuments.{{ $term->id }}" class="max-w-[10rem]" accept="image/*,application/pdf" />
+                                                        <x-button :label="__('Replace')" type="submit" class="btn-ghost btn-xs" spinner="saveGuaranteeLetter({{ $term->id }})" />
+                                                        @error("glDocuments.{$term->id}") <div class="w-full text-xs text-error">{{ $message }}</div> @enderror
+                                                    </form>
+                                                @endif
+                                            </div>
+
+                                            <div>
+                                                <div class="eyebrow text-base-content/50">{{ __('2 · Payment Date') }}</div>
+                                                @if ($letter->payment_due_date)
+                                                    <div class="mt-1 font-bold">{{ $letter->payment_due_date->format('d M Y') }}</div>
+                                                    @unless ($letter->isDueForPayment())
+                                                        <p class="text-xs text-base-content/50">{{ __('Proof can be uploaded from this date.') }}</p>
+                                                    @endunless
+                                                @endif
+                                                @if ($isJ4u)
+                                                    <form wire:submit="scheduleGuaranteeLetter({{ $term->id }})" class="mt-2 flex flex-wrap items-end gap-2">
+                                                        <x-input wire:model="glDueDates.{{ $term->id }}" type="date" class="max-w-[10rem]" />
+                                                        <x-button :label="__('Set')" type="submit" class="btn-primary btn-xs" spinner="scheduleGuaranteeLetter({{ $term->id }})" />
+                                                        @error("glDueDates.{$term->id}") <div class="w-full text-xs text-error">{{ $message }}</div> @enderror
+                                                    </form>
+                                                @endif
+                                            </div>
+
+                                            <div>
+                                                <div class="eyebrow text-base-content/50">{{ __('3 · Transfer Proof') }}</div>
+                                                @if ($letter->hasProof())
+                                                    <button type="button" wire:click="downloadGuaranteeLetter({{ $term->id }}, 'proof')"
+                                                            class="link link-primary mt-1 inline-flex items-center gap-1 text-sm">
+                                                        <x-icon name="o-paper-clip" class="h-4 w-4" /> {{ $letter->proofDownloadName() }}
+                                                    </button>
+                                                    <div class="text-xs text-base-content/40">{{ $letter->proofHumanSize() }}</div>
+                                                @elseif ($isJ4u && $letter->payment_due_date)
+                                                    <form wire:submit="uploadGuaranteeLetterProof({{ $term->id }})" class="mt-2 flex flex-wrap items-end gap-2">
+                                                        <x-file wire:model="glProofs.{{ $term->id }}" class="max-w-[10rem]" accept="image/*,application/pdf" />
+                                                        <x-button :label="__('Upload')" icon="o-arrow-up-tray" type="submit" class="btn-primary btn-xs" spinner="uploadGuaranteeLetterProof({{ $term->id }})" />
+                                                        @error("glProofs.{$term->id}") <div class="w-full text-xs text-error">{{ $message }}</div> @enderror
+                                                    </form>
+                                                @else
+                                                    <p class="mt-1 text-sm text-base-content/50">{{ __('Set the payment date first.') }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endif
                         @empty
-                            <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No payment terms.') }}</td></tr>
+                            <tr><td colspan="6" class="text-center text-base-content/50">{{ __('No payment terms.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -314,16 +447,10 @@
                         <div class="mt-1.5 size-2 shrink-0 rounded-full bg-base-300"></div>
                         <div class="min-w-0">
                             <div class="text-sm">
-                                <span class="font-semibold">{{ $log->user?->name ?? __('System') }}</span>
-                                <span class="text-base-content/50">— {{ $log->action }}</span>
+                                <span class="font-semibold">{{ $log->user?->name ?? __('Sistem') }}</span>
+                                <span class="text-base-content/70">{{ $log->describe() }}</span>
                             </div>
                             <div class="text-xs text-base-content/50">{{ $log->created_at->format('d M Y H:i') }}</div>
-
-                            @if (is_array($log->details) && isset($log->details['status']) && is_array($log->details['status']))
-                                <div class="mt-1 text-xs text-base-content/50">
-                                    status: {{ $log->details['status']['old'] }} → {{ $log->details['status']['new'] }}
-                                </div>
-                            @endif
                         </div>
                     </div>
                 @empty

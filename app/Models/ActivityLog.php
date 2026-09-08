@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ActivityDescriber;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,15 @@ use Illuminate\Support\Carbon;
 class ActivityLog extends Model
 {
     public const UPDATED_AT = null;
+
+    /**
+     * One plain-Indonesian sentence describing this entry, for the UI.
+     * The stored slug is untouched — see App\Support\ActivityDescriber.
+     */
+    public function describe(): string
+    {
+        return app(ActivityDescriber::class)->describe($this);
+    }
 
     /** @return BelongsTo<Deal, $this> */
     public function deal(): BelongsTo

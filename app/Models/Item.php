@@ -15,13 +15,15 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $name
  * @property string|null $type
+ * @property string|null $inclusion
  * @property int|null $quota
- * @property numeric-string|null $default_price
+ * @property numeric-string|null $default_price_idr
+ * @property numeric-string|null $default_price_usd
  * @property bool $requires_material
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'type', 'quota', 'default_price', 'requires_material'])]
+#[Fillable(['name', 'type', 'inclusion', 'quota', 'default_price_idr', 'default_price_usd', 'requires_material'])]
 class Item extends Model
 {
     /** @use HasFactory<ItemFactory> */
@@ -30,7 +32,7 @@ class Item extends Model
     /** @return BelongsToMany<Package, $this, Pivot> */
     public function packages(): BelongsToMany
     {
-        return $this->belongsToMany(Package::class, 'package_item')->withTimestamps();
+        return $this->belongsToMany(Package::class, 'package_item')->withPivot('quantity')->withTimestamps();
     }
 
     /** @return BelongsToMany<Deal, $this, DealItem> */
@@ -38,7 +40,7 @@ class Item extends Model
     {
         return $this->belongsToMany(Deal::class, 'deal_items')
             ->using(DealItem::class)
-            ->withPivot(['is_addon', 'custom_price'])
+            ->withPivot(['quantity', 'inclusion', 'is_addon', 'custom_price'])
             ->withTimestamps();
     }
 
@@ -52,7 +54,8 @@ class Item extends Model
     {
         return [
             'quota' => 'integer',
-            'default_price' => 'decimal:2',
+            'default_price_idr' => 'decimal:2',
+            'default_price_usd' => 'decimal:2',
             'requires_material' => 'boolean',
         ];
     }

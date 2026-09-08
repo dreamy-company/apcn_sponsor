@@ -4,7 +4,10 @@
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-xl font-extrabold tracking-tight md:text-2xl">{{ $package->name }}</h1>
-                <p class="mt-1 text-base-content/60">Rp {{ number_format((float) $package->default_price, 0, ',', '.') }}</p>
+                <p class="mt-1 text-base-content/60">
+                    <x-money :amount="$package->default_price_idr" />
+                    · <x-money :amount="$package->default_price_usd" currency="USD" />
+                </p>
             </div>
             <div class="flex gap-3">
                 <x-button :label="__('Back')" icon="o-arrow-left" :link="route('catalog.packages.index')" class="btn-ghost" />
@@ -31,7 +34,7 @@
                 <h3 class="eyebrow text-base-content/50">{{ __('Items in Package') }}</h3>
                 <div class="mt-2 flex flex-wrap gap-1.5">
                     @forelse ($package->items as $item)
-                        <a href="{{ route('catalog.items.show', $item) }}" wire:navigate class="badge badge-soft badge-ghost">{{ $item->name }}</a>
+                        <a href="{{ route('catalog.items.show', $item) }}" wire:navigate class="badge badge-soft badge-ghost">{{ $item->name }}@if ((int) $item->pivot->quantity > 1) ×{{ $item->pivot->quantity }}@endif</a>
                     @empty
                         <span class="text-sm text-base-content/50">{{ __('No items in this package.') }}</span>
                     @endforelse
@@ -48,6 +51,7 @@
                     <thead>
                         <tr>
                             <th>{{ __('Sponsor') }}</th>
+                            <th>{{ __('Brand') }}</th>
                             <th>{{ __('Deal #') }}</th>
                             <th>{{ __('Final Price') }}</th>
                             <th>{{ __('Status') }}</th>
@@ -59,10 +63,11 @@
                                 <td class="font-semibold">
                                     <a href="{{ route('sponsors.show', $deal->sponsor) }}" class="link link-primary" wire:navigate>{{ $deal->sponsor->company_name }}</a>
                                 </td>
+                                <td class="text-base-content/70">{{ $deal->sponsor->brand_name ?? '—' }}</td>
                                 <td>
                                     <a href="{{ route('deals.show', $deal) }}" class="link" wire:navigate>{{ $deal->deal_number }}</a>
                                 </td>
-                                <td>Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</td>
+                                <td><x-money :amount="$deal->final_price" :currency="$deal->currency" /></td>
                                 <td>
                                     <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">
                                         {{ $deal->status->label() }}
@@ -70,7 +75,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No sponsors on this package yet.') }}</td></tr>
+                            <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No sponsors on this package yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

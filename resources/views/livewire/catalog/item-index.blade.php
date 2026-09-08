@@ -36,12 +36,24 @@
                                 </td>
                                 <td>{{ $item->type ?? '—' }}</td>
                                 <td class="whitespace-nowrap">
-                                    {{ $item->default_price !== null ? 'Rp '.number_format((float) $item->default_price, 0, ',', '.') : '—' }}
+                                    <x-money :amount="$item->default_price_idr" />
+                                    <div class="text-xs text-base-content/50">
+                                        <x-money :amount="$item->default_price_usd" currency="USD" />
+                                    </div>
                                 </td>
-                                <td>
+                                <td class="whitespace-nowrap">
                                     <span class="badge badge-soft {{ $item->quota !== null && $item->taken_count >= $item->quota ? 'badge-error' : 'badge-ghost' }}">
                                         {{ $item->taken_count }} / {{ $item->quota ?? '∞' }}
                                     </span>
+                                    <div class="text-xs text-base-content/50">
+                                        @if ($item->quota === null)
+                                            {{ __('Unlimited') }}
+                                        @elseif ($item->taken_count >= $item->quota)
+                                            <span class="text-error">{{ __('Sold out') }}</span>
+                                        @else
+                                            {{ __(':n left', ['n' => $item->quota - $item->taken_count]) }}
+                                        @endif
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="badge badge-soft {{ $item->requires_material ? 'badge-warning' : 'badge-ghost' }}">

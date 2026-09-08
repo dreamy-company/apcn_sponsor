@@ -61,7 +61,7 @@ class DatabaseSeeder extends Seeder
         );
 
         $addon = Item::where('name', 'Gala Dinner Naming Rights')->firstOrFail();
-        $deal->items()->attach($addon->id, ['is_addon' => true, 'custom_price' => $addon->default_price]);
+        $deal->items()->attach($addon->id, ['is_addon' => true, 'custom_price' => $addon->default_price_idr]);
 
         $deal->paymentTerms()->createMany([
             ['description' => 'Termin 1 (DP 50%)', 'due_date' => now()->addMonths(2)->toDateString(), 'amount' => 1_764_750_000, 'status' => PaymentStatus::Paid],

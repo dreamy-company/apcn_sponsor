@@ -23,15 +23,26 @@
                     :placeholder="__('booth, symposium, naming, advertising, digital...')"
                 />
 
-                <x-input
+                <x-textarea
+                    :label="__('Inclusion')"
+                    :hint="__('What the sponsor gets for this item. Shown on every deal that includes it, and can be adjusted per deal.')"
+                    wire:model="inclusion"
+                    rows="3"
+                    :placeholder="__('e.g. 1 unit booth 3x3m, includes 2 chairs and 1 table.')"
+                />
+
+                <x-money-input
                     :label="__('Default Price (IDR)')"
                     :hint="__('Rate-card price when sold separately as an add-on. Leave blank if quoted per deal.')"
-                    wire:model="defaultPrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0"
-                    prefix="Rp"
+                    wire:model="defaultPriceIdr"
+                    currency="IDR"
+                />
+
+                <x-money-input
+                    :label="__('Default Price (USD)')"
+                    :hint="__('Used when the deal is transacted in USD.')"
+                    wire:model="defaultPriceUsd"
+                    currency="USD"
                 />
 
                 <x-input

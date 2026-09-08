@@ -21,9 +21,9 @@
         @php
             $s = $report['summary'];
             $cards = [
-                ['label' => __('Total Committed'), 'value' => 'Rp '.number_format((float) $s['totalCommitted'], 0, ',', '.'), 'sub' => $s['finalizedCount'].' '.__('finalized deals'), 'tone' => 'primary', 'icon' => 'o-banknotes'],
-                ['label' => __('Payments Received'), 'value' => 'Rp '.number_format((float) $s['paidAmount'], 0, ',', '.'), 'sub' => __('received from sponsors'), 'tone' => 'success', 'icon' => 'o-check-circle'],
-                ['label' => __('Outstanding'), 'value' => 'Rp '.number_format((float) $s['outstandingAmount'], 0, ',', '.'), 'sub' => __('awaiting payment'), 'tone' => 'error', 'icon' => 'o-clock'],
+                ['label' => __('Total Committed'), 'value' => \App\Enums\Currency::IDR->format($s['totalCommitted']), 'sub' => $s['finalizedCount'].' '.__('finalized deals'), 'tone' => 'primary', 'icon' => 'o-banknotes'],
+                ['label' => __('Payments Received'), 'value' => \App\Enums\Currency::IDR->format($s['paidAmount']), 'sub' => __('received from sponsors'), 'tone' => 'success', 'icon' => 'o-check-circle'],
+                ['label' => __('Outstanding'), 'value' => \App\Enums\Currency::IDR->format($s['outstandingAmount']), 'sub' => __('awaiting payment'), 'tone' => 'error', 'icon' => 'o-clock'],
                 ['label' => __('Sponsors'), 'value' => $report['sponsorsCount'], 'sub' => $s['dealsCount'].' '.__('deals'), 'tone' => 'info', 'icon' => 'o-building-office-2'],
                 ['label' => __('In Progress'), 'value' => $s['draftCount'], 'sub' => __('awaiting finalization'), 'tone' => 'warning', 'icon' => 'o-document-text'],
                 ['label' => __('Materials'), 'value' => $s['materialReceived'].' / '.$s['materialTotal'], 'sub' => __('received of all required'), 'tone' => 'primary', 'icon' => 'o-cube'],
@@ -81,7 +81,7 @@
                                     </td>
                                     <td><x-tier-badge :package="$sponsor->topPackage()" /></td>
                                     <td class="text-right">{{ $sponsor->deals_count }}</td>
-                                    <td class="whitespace-nowrap text-right">Rp {{ number_format((float) $sponsor->deals_sum_final_price, 0, ',', '.') }}</td>
+                                    <td class="whitespace-nowrap text-right"><x-money :amount="$sponsor->deals_sum_final_price ?? 0" /></td>
                                 </tr>
                             @empty
                                 <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No sponsors yet.') }}</td></tr>
@@ -114,8 +114,8 @@
                                         <a href="{{ route('public.report.sponsor', ['token' => $token, 'sponsor' => $deal->sponsor_id]) }}" class="link link-primary" wire:navigate>{{ $deal->sponsor->company_name }}</a>
                                     </td>
                                     <td><x-tier-badge :package="$deal->package" /></td>
-                                    <td class="whitespace-nowrap text-right">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</td>
-                                    <td class="whitespace-nowrap text-right">Rp {{ number_format((float) ($deal->paid_total ?? 0), 0, ',', '.') }}</td>
+                                    <td class="whitespace-nowrap text-right"><x-money :amount="$deal->final_price" :currency="$deal->currency" /></td>
+                                    <td class="whitespace-nowrap text-right"><x-money :amount="$deal->paid_total ?? 0" :currency="$deal->currency" /></td>
                                 </tr>
                             @empty
                                 <tr><td colspan="5" class="text-center text-base-content/50">{{ __('No finalized deals yet.') }}</td></tr>
@@ -147,7 +147,7 @@
                                         <a href="{{ route('public.report.sponsor', ['token' => $token, 'sponsor' => $deal->sponsor_id]) }}" class="link link-primary" wire:navigate>{{ $deal->sponsor->company_name }}</a>
                                     </td>
                                     <td><x-tier-badge :package="$deal->package" /></td>
-                                    <td class="whitespace-nowrap text-right">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</td>
+                                    <td class="whitespace-nowrap text-right"><x-money :amount="$deal->final_price" :currency="$deal->currency" /></td>
                                 </tr>
                             @empty
                                 <tr><td colspan="4" class="text-center text-base-content/50">{{ __('No deals in progress.') }}</td></tr>
@@ -174,7 +174,7 @@
                                 @foreach ($report['packageUptake'] as $package)
                                     <tr wire:key="pkg-{{ $package->id }}">
                                         <td class="font-semibold">{{ $package->name }}</td>
-                                        <td>Rp {{ number_format((float) $package->default_price, 0, ',', '.') }}</td>
+                                        <td><x-money :amount="$package->default_price_idr" /></td>
                                         <td>
                                             <span class="badge badge-soft whitespace-nowrap {{ $package->quota !== null && $package->taken_count >= $package->quota ? 'badge-error' : 'badge-ghost' }}">
                                                 {{ $package->taken_count }} / {{ $package->quota ?? '∞' }}

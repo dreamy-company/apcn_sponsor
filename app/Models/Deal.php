@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Currency;
 use App\Enums\DealStatus;
 use App\Observers\DealObserver;
 use Database\Factories\DealFactory;
@@ -20,12 +21,14 @@ use Illuminate\Support\Carbon;
  * @property int $doctor_id
  * @property int $sponsor_id
  * @property int|null $package_id
- * @property string $final_price
+ * @property Currency $currency
+ * @property numeric-string $subtotal
+ * @property numeric-string $final_price
  * @property DealStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['deal_number', 'doctor_id', 'sponsor_id', 'package_id', 'final_price', 'status'])]
+#[Fillable(['deal_number', 'doctor_id', 'sponsor_id', 'package_id', 'currency', 'subtotal', 'final_price', 'status'])]
 #[ObservedBy([DealObserver::class])]
 class Deal extends Model
 {
@@ -55,7 +58,7 @@ class Deal extends Model
     {
         return $this->belongsToMany(Item::class, 'deal_items')
             ->using(DealItem::class)
-            ->withPivot(['is_addon', 'custom_price'])
+            ->withPivot(['quantity', 'inclusion', 'is_addon', 'custom_price'])
             ->withTimestamps();
     }
 
@@ -87,6 +90,8 @@ class Deal extends Model
     {
         return [
             'status' => DealStatus::class,
+            'currency' => Currency::class,
+            'subtotal' => 'decimal:2',
             'final_price' => 'decimal:2',
         ];
     }

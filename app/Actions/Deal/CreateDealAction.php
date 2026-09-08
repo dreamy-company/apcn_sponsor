@@ -16,20 +16,15 @@ class CreateDealAction
     public function execute(DealData $data): Deal
     {
         return DB::transaction(function () use ($data): Deal {
-            // A sponsor is the company entity: reuse an existing one by name so a
-            // company's deals aggregate under a single sponsor. PIC is refreshed
-            // to the latest details entered.
-            $sponsor = Sponsor::firstOrNew(['company_name' => $data->companyName]);
-            $sponsor->fill([
-                'pic_name' => $data->picName,
-                'pic_contact' => $data->picContact,
-            ])->save();
+            $sponsor = $this->resolveSponsor($data);
 
             $deal = Deal::create([
                 'deal_number' => $this->generateDealNumber(),
                 'doctor_id' => $data->doctorId,
                 'sponsor_id' => $sponsor->id,
                 'package_id' => $data->packageId,
+                'currency' => $data->currency,
+                'subtotal' => $data->subtotal,
                 'final_price' => $data->finalPrice,
                 'status' => DealStatus::Draft,
             ]);
@@ -37,7 +32,12 @@ class CreateDealAction
             $this->syncItems($deal, $data->items);
 
             foreach ($data->paymentTerms as $term) {
-                $deal->paymentTerms()->create($term);
+                $deal->paymentTerms()->create([
+                    'description' => $term['description'],
+                    'due_date' => $term['due_date'],
+                    'amount' => $term['amount'],
+                    'notes' => $term['notes'] ?? null,
+                ]);
             }
 
             return $deal;
@@ -45,7 +45,27 @@ class CreateDealAction
     }
 
     /**
-     * @param  array<int, array{item_id: int, is_addon: bool, custom_price: string|null}>  $items
+     * A sponsor is one brand under one legal entity: deals aggregate under the
+     * (company_name, brand_name) pair, so two brands of the same PT stay separate.
+     * PIC is refreshed to the latest details entered.
+     */
+    protected function resolveSponsor(DealData $data): Sponsor
+    {
+        $sponsor = Sponsor::firstOrNew([
+            'company_name' => $data->companyName,
+            'brand_name' => $data->brandName,
+        ]);
+
+        $sponsor->fill([
+            'pic_name' => $data->picName,
+            'pic_contact' => $data->picContact,
+        ])->save();
+
+        return $sponsor;
+    }
+
+    /**
+     * @param  array<int, array{item_id: int, quantity: int, inclusion: string|null, is_addon: bool, custom_price: string|null}>  $items
      */
     protected function syncItems(Deal $deal, array $items): void
     {
@@ -57,13 +77,15 @@ class CreateDealAction
     }
 
     /**
-     * @param  array<int, array{item_id: int, is_addon: bool, custom_price: string|null}>  $items
-     * @return array<int, array{is_addon: bool, custom_price: string|null}>
+     * @param  array<int, array{item_id: int, quantity: int, inclusion: string|null, is_addon: bool, custom_price: string|null}>  $items
+     * @return array<int, array{quantity: int, inclusion: string|null, is_addon: bool, custom_price: string|null}>
      */
     protected function toPivot(array $items): array
     {
         return collect($items)->mapWithKeys(fn (array $item): array => [
             $item['item_id'] => [
+                'quantity' => max(1, $item['quantity']),
+                'inclusion' => $item['inclusion'],
                 'is_addon' => $item['is_addon'],
                 'custom_price' => $item['custom_price'] !== '' && $item['custom_price'] !== null
                     ? $item['custom_price']

@@ -12,13 +12,13 @@
     <div class="grid gap-4 sm:grid-cols-3">
         <div class="rounded-box bg-base-200 p-4">
             <div class="eyebrow text-base-content/50">{{ __('Final Price') }}</div>
-            <div class="mt-1 text-xl font-extrabold">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</div>
+            <div class="mt-1 text-xl font-extrabold"><x-money :amount="$deal->final_price" :currency="$deal->currency" /></div>
         </div>
         <div class="rounded-box bg-base-200 p-4">
             <div class="eyebrow text-base-content/50">{{ __('Payments') }}</div>
             <div class="mt-1 text-xl font-extrabold">
-                Rp {{ number_format($totalPaid, 0, ',', '.') }}
-                <span class="text-sm font-normal text-base-content/50">/ Rp {{ number_format($totalTerms, 0, ',', '.') }}</span>
+                <x-money :amount="$totalPaid" :currency="$deal->currency" />
+                <span class="text-sm font-normal text-base-content/50">/ <x-money :amount="$totalTerms" :currency="$deal->currency" /></span>
             </div>
         </div>
         <div class="rounded-box bg-base-200 p-4">
@@ -75,7 +75,7 @@
                         <tr>
                             <td class="font-semibold">{{ $term->description }}</td>
                             <td>{{ $term->due_date->format('d M Y') }}</td>
-                            <td>Rp {{ number_format((float) $term->amount, 0, ',', '.') }}</td>
+                            <td><x-money :amount="$term->amount" :currency="$deal->currency" /></td>
                             <td><span class="badge badge-soft {{ $term->status === \App\Enums\PaymentStatus::Paid ? 'badge-success' : 'badge-ghost' }}">{{ $term->status->label() }}</span></td>
                             <td>
                                 @if ($term->hasProof())

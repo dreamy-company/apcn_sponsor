@@ -17,6 +17,7 @@ use App\Livewire\Sponsors\SponsorShow;
 use App\Models\Deal;
 use App\Models\Item;
 use App\Models\Package;
+use App\Models\PaymentTerm;
 use App\Models\Sponsor;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -58,7 +59,7 @@ class QuotaSponsorAssetTest extends TestCase
 
         Livewire::test(CatalogPackageForm::class)
             ->set('name', 'Diamond')
-            ->set('defaultPrice', '500000000')
+            ->set('defaultPriceIdr', '500000000')
             ->set('quota', null)
             ->call('save');
 
@@ -93,8 +94,9 @@ class QuotaSponsorAssetTest extends TestCase
         $taken = Deal::factory()->finalized()->create(['package_id' => null]);
         $taken->items()->attach($item->id, ['is_addon' => true]);
 
-        $draft = Deal::factory()->create(['package_id' => null]);
+        $draft = Deal::factory()->create(['package_id' => null, 'final_price' => 50_000_000]);
         $draft->items()->attach($item->id, ['is_addon' => true]);
+        PaymentTerm::factory()->create(['deal_id' => $draft->id, 'amount' => 50_000_000]);
 
         app(FinalizeDealAction::class)->execute($draft->fresh());
 
@@ -115,12 +117,13 @@ class QuotaSponsorAssetTest extends TestCase
         Livewire::test(DealForm::class)
             ->set('doctorId', $doctor->id)
             ->set('companyName', 'PT Baru')
+            ->set('brandName', 'Baru Brand')
             ->set('picName', 'Andi')
             ->set('picContact', '+62 811 1111 1111')
             ->set('packageId', null)
             ->set('finalPrice', '10000000')
             ->set('items', [
-                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => 1, 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
+                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => 1, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
             ])
             ->set('paymentTerms', [])
             ->call('save')
@@ -141,11 +144,14 @@ class QuotaSponsorAssetTest extends TestCase
         $make = fn (): DealData => new DealData(
             doctorId: $doctor->id,
             companyName: 'PT Sehat Jaya',
+            brandName: 'Sehat Brand',
             picName: 'Rina',
             picContact: '+62 812 0000 0000',
             packageId: null,
+            currency: 'IDR',
+            subtotal: '0',
             finalPrice: '10000000',
-            items: [['item_id' => $item->id, 'is_addon' => true, 'custom_price' => null]],
+            items: [['item_id' => $item->id, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'custom_price' => null]],
             paymentTerms: [],
         );
 
@@ -154,6 +160,35 @@ class QuotaSponsorAssetTest extends TestCase
 
         $this->assertDatabaseCount('sponsors', 1);
         $this->assertSame(2, Sponsor::firstWhere('company_name', 'PT Sehat Jaya')->deals()->count());
+    }
+
+    public function test_two_brands_under_one_company_are_separate_sponsors(): void
+    {
+        $this->actingAsJ4u();
+
+        $doctor = User::factory()->doctor()->create();
+        $item = Item::factory()->create();
+
+        $make = fn (string $brand): DealData => new DealData(
+            doctorId: $doctor->id,
+            companyName: 'PT Sehat Jaya',
+            brandName: $brand,
+            picName: 'Rina',
+            picContact: '+62 812 0000 0000',
+            packageId: null,
+            currency: 'IDR',
+            subtotal: '0',
+            finalPrice: '10000000',
+            items: [['item_id' => $item->id, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'custom_price' => null]],
+            paymentTerms: [],
+        );
+
+        app(CreateDealAction::class)->execute($make('Brand A'));
+        app(CreateDealAction::class)->execute($make('Brand B'));
+
+        $this->assertDatabaseCount('sponsors', 2);
+        $this->assertDatabaseHas('sponsors', ['company_name' => 'PT Sehat Jaya', 'brand_name' => 'Brand A']);
+        $this->assertDatabaseHas('sponsors', ['company_name' => 'PT Sehat Jaya', 'brand_name' => 'Brand B']);
     }
 
     // ---- Sponsor pages -------------------------------------------------------
@@ -172,8 +207,8 @@ class QuotaSponsorAssetTest extends TestCase
     public function test_sponsor_top_package_is_the_highest_priced_tier(): void
     {
         $sponsor = Sponsor::factory()->create();
-        $silver = Package::factory()->create(['name' => 'Silver', 'default_price' => 40_000_000]);
-        $diamond = Package::factory()->create(['name' => 'Diamond', 'default_price' => 500_000_000]);
+        $silver = Package::factory()->create(['name' => 'Silver', 'default_price_idr' => 40_000_000]);
+        $diamond = Package::factory()->create(['name' => 'Diamond', 'default_price_idr' => 500_000_000]);
 
         Deal::factory()->create(['sponsor_id' => $sponsor->id, 'package_id' => $silver->id]);
         Deal::factory()->create(['sponsor_id' => $sponsor->id, 'package_id' => $diamond->id]);
@@ -210,12 +245,13 @@ class QuotaSponsorAssetTest extends TestCase
         Livewire::test(DealForm::class)
             ->set('doctorId', $doctor->id)
             ->set('companyName', 'PT Asset')
+            ->set('brandName', 'Asset Brand')
             ->set('picName', 'Sari')
             ->set('picContact', '+62 813 2222 2222')
             ->set('packageId', null)
             ->set('finalPrice', '10000000')
             ->set('items', [
-                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => null, 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
+                ['item_id' => $item->id, 'name' => $item->name, 'type' => null, 'quota' => null, 'quantity' => 1, 'inclusion' => '', 'catalog_inclusion' => '', 'is_addon' => true, 'checked' => true, 'custom_price' => ''],
             ])
             ->set('paymentTerms', [])
             ->set('assets', [UploadedFile::fake()->create('contract.pdf', 30000)]) // ~30MB > 20MB

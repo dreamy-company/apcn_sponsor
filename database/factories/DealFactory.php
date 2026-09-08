@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\Currency;
 use App\Enums\DealStatus;
 use App\Models\Deal;
 use App\Models\Package;
@@ -26,6 +27,8 @@ class DealFactory extends Factory
             'doctor_id' => User::factory()->doctor(),
             'sponsor_id' => Sponsor::factory(),
             'package_id' => Package::factory(),
+            'currency' => Currency::IDR,
+            'subtotal' => 0,
             'final_price' => fake()->numberBetween(10_000_000, 500_000_000),
             'status' => DealStatus::Draft,
         ];

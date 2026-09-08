@@ -22,7 +22,7 @@
             </x-card>
             <x-card>
                 <h3 class="eyebrow text-base-content/50">{{ __('Total Value') }}</h3>
-                <div class="mt-2 text-2xl font-extrabold">Rp {{ number_format((float) $totalValue, 0, ',', '.') }}</div>
+                <div class="mt-2 text-2xl font-extrabold"><x-money :amount="$totalValue" /></div>
             </x-card>
             <x-card>
                 <h3 class="eyebrow text-base-content/50">{{ __('Items Taken') }}</h3>
@@ -57,7 +57,7 @@
                                 </td>
                                 <td><x-tier-badge :package="$deal->package" /></td>
                                 <td>{{ $deal->doctor?->name ?? '—' }}</td>
-                                <td>Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</td>
+                                <td><x-money :amount="$deal->final_price" :currency="$deal->currency" /></td>
                                 <td>
                                     <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">
                                         {{ $deal->status->label() }}

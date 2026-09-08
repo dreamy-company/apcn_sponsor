@@ -13,8 +13,10 @@ class CreateItemAction
         return DB::transaction(fn (): Item => Item::create([
             'name' => $data->name,
             'type' => $data->type,
+            'inclusion' => $data->inclusion,
             'quota' => $data->quota,
-            'default_price' => $data->defaultPrice,
+            'default_price_idr' => $data->defaultPriceIdr,
+            'default_price_usd' => $data->defaultPriceUsd,
             'requires_material' => $data->requiresMaterial,
         ]));
     }

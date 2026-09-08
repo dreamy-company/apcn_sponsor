@@ -69,7 +69,7 @@ class DoctorManagementTest extends TestCase
 
         // The new doctor is selectable as an initiator on the deal form.
         Livewire::test(DealForm::class)
-            ->assertViewHas('doctors', fn ($doctors) => $doctors->contains('id', $doctor->id));
+            ->assertSet('doctorOptions', fn (array $options): bool => collect($options)->contains('id', $doctor->id));
     }
 
     public function test_j4u_can_edit_a_doctor(): void

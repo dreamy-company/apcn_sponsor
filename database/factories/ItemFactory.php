@@ -20,7 +20,8 @@ class ItemFactory extends Factory
         return [
             'name' => fake()->unique()->words(3, true),
             'type' => fake()->randomElement(['booth', 'symposium', 'naming', 'advertising']),
-            'default_price' => fake()->numberBetween(10, 500) * 1_000_000,
+            'default_price_idr' => $idr = fake()->numberBetween(10, 500) * 1_000_000,
+            'default_price_usd' => round($idr / 18_100, 2),
             'requires_material' => fake()->boolean(),
         ];
     }

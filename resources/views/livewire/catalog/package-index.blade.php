@@ -26,11 +26,25 @@
                                 <td class="font-semibold">
                                     <a href="{{ route('catalog.packages.show', $package) }}" class="link link-primary" wire:navigate>{{ $package->name }}</a>
                                 </td>
-                                <td>Rp {{ number_format((float) $package->default_price, 0, ',', '.') }}</td>
-                                <td>
+                                <td class="whitespace-nowrap">
+                                    <x-money :amount="$package->default_price_idr" />
+                                    <div class="text-xs text-base-content/50">
+                                        <x-money :amount="$package->default_price_usd" currency="USD" />
+                                    </div>
+                                </td>
+                                <td class="whitespace-nowrap">
                                     <span class="badge badge-soft {{ $package->quota !== null && $package->taken_count >= $package->quota ? 'badge-error' : 'badge-ghost' }}">
                                         {{ $package->taken_count }} / {{ $package->quota ?? '∞' }}
                                     </span>
+                                    <div class="text-xs text-base-content/50">
+                                        @if ($package->quota === null)
+                                            {{ __('Unlimited') }}
+                                        @elseif ($package->taken_count >= $package->quota)
+                                            <span class="text-error">{{ __('Sold out') }}</span>
+                                        @else
+                                            {{ __(':n left', ['n' => $package->quota - $package->taken_count]) }}
+                                        @endif
+                                    </div>
                                 </td>
                                 <td>{{ $package->items_count }} {{ __('items') }}</td>
                                 <td>

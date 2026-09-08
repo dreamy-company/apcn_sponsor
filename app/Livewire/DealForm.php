@@ -2,27 +2,37 @@
 
 namespace App\Livewire;
 
+use App\Actions\Catalog\CreateItemAction;
+use App\Actions\Catalog\CreatePackageAction;
 use App\Actions\Deal\CreateDealAction;
 use App\Actions\Deal\StoreDealAssetAction;
 use App\Actions\Deal\UpdateDealAction;
+use App\Actions\Doctor\CreateDoctorAction;
+use App\DTOs\Catalog\ItemData;
+use App\DTOs\Catalog\PackageData;
 use App\DTOs\Deal\DealData;
+use App\DTOs\Doctor\DoctorData;
+use App\Enums\Currency;
 use App\Enums\UserRole;
 use App\Models\Deal;
 use App\Models\Item;
 use App\Models\Package;
 use App\Models\User;
 use App\Services\QuotaService;
+use App\Support\Money;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Exists;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
+use Mary\Traits\Toast;
 
 class DealForm extends Component
 {
-    use WithFileUploads;
+    use Toast, WithFileUploads;
 
     public const TOTAL_STEPS = 4;
 
@@ -36,7 +46,11 @@ class DealForm extends Component
 
     public int $doctorId = 0;
 
+    /** Legal entity (PT) the deal is signed with. */
     public string $companyName = '';
+
+    /** Brand negotiated under that entity — exactly one per deal. */
+    public string $brandName = '';
 
     public string $picName = '';
 
@@ -44,16 +58,64 @@ class DealForm extends Component
 
     public ?int $packageId = null;
 
+    /** Currency the deal is transacted in (IDR|USD). */
+    public string $currency = Currency::IDR->value;
+
     public string $finalPrice = '';
 
-    /** @var array<int, array{item_id: int, name: string, type: string|null, quota: int|null, is_addon: bool, checked: bool, custom_price: string}> */
+    /** Filters the item grid; never mutates $items, so hidden rows keep their state. */
+    public string $itemSearch = '';
+
+    /** @var array<int, array{item_id: int, name: string, type: string|null, quota: int|null, quantity: int, inclusion: string, catalog_inclusion: string, is_addon: bool, checked: bool, custom_price: string}> */
     public array $items = [];
 
-    /** @var array<int, array{description: string, due_date: string, amount: string}> */
+    /** @var array<int, array{id: int|null, description: string, due_date: string, amount: string, notes: string}> */
     public array $paymentTerms = [];
 
     /** @var array<int, TemporaryUploadedFile> */
     public array $assets = [];
+
+    // --- Inline "create doctor" (shown when the typed name has no match) ---
+    public bool $showDoctorModal = false;
+
+    public string $newDoctorName = '';
+
+    public string $newDoctorPhone = '';
+
+    // --- Inline catalog creation ---
+    public bool $showItemModal = false;
+
+    public string $newItemName = '';
+
+    public string $newItemType = '';
+
+    public string $newItemInclusion = '';
+
+    public string $newItemPriceIdr = '';
+
+    public string $newItemPriceUsd = '';
+
+    public string $newItemQuota = '';
+
+    public bool $newItemRequiresMaterial = false;
+
+    public bool $showPackageModal = false;
+
+    public string $newPackageName = '';
+
+    public string $newPackagePriceIdr = '';
+
+    public string $newPackagePriceUsd = '';
+
+    public string $newPackageQuota = '';
+
+    /**
+     * Doctor options for the searchable combobox. Plain arrays, not models —
+     * Livewire has to round-trip this between requests.
+     *
+     * @var array<int, array{id: int, name: string}>
+     */
+    public array $doctorOptions = [];
 
     public function mount(?Deal $deal = null): void
     {
@@ -66,16 +128,20 @@ class DealForm extends Component
 
             $this->doctorId = $deal->doctor_id;
             $this->companyName = $deal->sponsor->company_name;
+            $this->brandName = $deal->sponsor->brand_name ?? '';
             $this->picName = $deal->sponsor->pic_name;
             $this->picContact = $deal->sponsor->pic_contact;
             $this->packageId = $deal->package_id;
-            $this->finalPrice = $deal->final_price;
+            $this->currency = $deal->currency->value;
+            $this->finalPrice = Money::plain($deal->final_price);
 
             $this->paymentTerms = $deal->paymentTerms()->get()
                 ->map(fn ($term): array => [
+                    'id' => $term->id,
                     'description' => $term->description,
                     'due_date' => $term->due_date->format('Y-m-d'),
                     'amount' => $term->amount,
+                    'notes' => $term->notes ?? '',
                 ])
                 ->all();
 
@@ -85,7 +151,9 @@ class DealForm extends Component
                 return [
                     $item->id => [
                         'is_addon' => (bool) $pivot->is_addon,
-                        'custom_price' => $pivot->custom_price ?? '',
+                        'quantity' => max(1, (int) $pivot->quantity),
+                        'inclusion' => $pivot->inclusion ?? '',
+                        'custom_price' => Money::plain($pivot->custom_price),
                     ],
                 ];
             })->all());
@@ -93,6 +161,8 @@ class DealForm extends Component
             $this->paymentTerms = [$this->emptyTerm()];
             $this->rebuildItems();
         }
+
+        $this->refreshDoctorOptions();
 
         // When editing, every step is already valid — allow free navigation.
         if ($deal) {
@@ -144,6 +214,211 @@ class DealForm extends Component
         }
     }
 
+    // ---------------------------------------------------------------- Money
+
+    public function currencyEnum(): Currency
+    {
+        return Currency::tryFrom($this->currency) ?? Currency::IDR;
+    }
+
+    /**
+     * BR-07: the accumulated rate-card value of the deal's scope — the base
+     * package price plus every selected add-on. Items included in the package
+     * contribute nothing, as the tier price already covers them.
+     *
+     * Informational only: final_price stays authoritative and manual (BR-02).
+     */
+    public function subtotal(): float
+    {
+        $subtotal = 0.0;
+
+        if ($this->packageId) {
+            $package = Package::find($this->packageId);
+            $column = $this->currencyEnum()->priceColumn();
+            $subtotal += (float) ($package?->getAttribute($column) ?? 0);
+        }
+
+        foreach ($this->items as $row) {
+            if (! $row['checked'] || ! $row['is_addon']) {
+                continue;
+            }
+
+            $unitPrice = (float) ($row['custom_price'] !== '' ? $row['custom_price'] : 0);
+            $subtotal += $unitPrice * max(1, (int) $row['quantity']);
+        }
+
+        return $subtotal;
+    }
+
+    public function termsTotal(): float
+    {
+        return collect($this->paymentTerms)
+            ->sum(fn (array $term): float => (float) ($term['amount'] ?: 0));
+    }
+
+    /**
+     * Difference between the payment terms and the final price. Zero (within a
+     * cent) means balanced — a prerequisite for finalizing (BR-08).
+     */
+    public function termsDifference(): float
+    {
+        return round($this->termsTotal() - (float) ($this->finalPrice ?: 0), 2);
+    }
+
+    public function termsBalanced(): bool
+    {
+        return abs($this->termsDifference()) < 0.005;
+    }
+
+    /**
+     * Adopt the computed subtotal as the agreed price (one-click convenience —
+     * the field stays editable).
+     */
+    public function useSubtotalAsFinalPrice(): void
+    {
+        $this->finalPrice = Money::plain($this->subtotal());
+    }
+
+    /**
+     * Switching currency re-reads add-on prices from the matching catalog column,
+     * since a price in one currency is meaningless in the other.
+     */
+    public function updatedCurrency(): void
+    {
+        $column = $this->currencyEnum()->priceColumn();
+        $prices = Item::query()->pluck($column, 'id');
+
+        $this->items = collect($this->items)->map(function (array $row) use ($prices): array {
+            if ($row['is_addon']) {
+                $row['custom_price'] = Money::plain($prices[$row['item_id']] ?? null);
+            }
+
+            return $row;
+        })->all();
+
+        if ($this->packageId) {
+            $package = Package::find($this->packageId);
+            $this->finalPrice = Money::plain($package?->getAttribute($column));
+        }
+    }
+
+    // ------------------------------------------------------------- Doctors
+
+    /**
+     * Search callback for the doctor combobox (Mary x-choices searchable).
+     */
+    public function searchDoctors(string $value = ''): void
+    {
+        $matches = User::query()
+            ->where('role', UserRole::Doctor->value)
+            ->when($value !== '', fn ($q) => $q->where('name', 'like', "%{$value}%"))
+            ->orderBy('name')
+            ->take(20)
+            ->get();
+
+        // Keep the current selection present so the combobox can still label it.
+        $this->doctorOptions = $this->withSelectedDoctor($this->toOptions($matches));
+    }
+
+    /**
+     * Create a doctor inline. Contact is required so the record is usable
+     * (doctors are non-login users reached via their public link).
+     */
+    public function createDoctor(): void
+    {
+        abort_unless(auth()->user()->isJ4u(), 403);
+
+        $validated = $this->validate([
+            'newDoctorName' => ['required', 'string', 'max:255'],
+            'newDoctorPhone' => ['required', 'string', 'max:50'],
+        ]);
+
+        $doctor = app(CreateDoctorAction::class)->execute(new DoctorData(
+            name: $validated['newDoctorName'],
+            phone: $validated['newDoctorPhone'],
+        ));
+
+        $this->doctorId = $doctor->id;
+        $this->newDoctorName = '';
+        $this->newDoctorPhone = '';
+        $this->showDoctorModal = false;
+
+        $this->refreshDoctorOptions();
+        $this->success(__('Doctor added.'));
+    }
+
+    // ------------------------------------------------- Inline catalog create
+
+    public function createItem(): void
+    {
+        abort_unless(auth()->user()->isJ4u(), 403);
+
+        $validated = $this->validate([
+            'newItemName' => ['required', 'string', 'max:255'],
+            'newItemType' => ['nullable', 'string', 'max:255'],
+            'newItemInclusion' => ['nullable', 'string', 'max:2000'],
+            'newItemPriceIdr' => ['nullable', 'numeric', 'min:0'],
+            'newItemPriceUsd' => ['nullable', 'numeric', 'min:0'],
+            'newItemQuota' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $item = app(CreateItemAction::class)->execute(new ItemData(
+            name: $validated['newItemName'],
+            type: $validated['newItemType'] !== '' ? $validated['newItemType'] : null,
+            inclusion: $validated['newItemInclusion'] !== '' ? $validated['newItemInclusion'] : null,
+            quota: $validated['newItemQuota'] !== '' ? (int) $validated['newItemQuota'] : null,
+            defaultPriceIdr: $validated['newItemPriceIdr'] !== '' ? $validated['newItemPriceIdr'] : null,
+            defaultPriceUsd: $validated['newItemPriceUsd'] !== '' ? $validated['newItemPriceUsd'] : null,
+            requiresMaterial: $this->newItemRequiresMaterial,
+        ));
+
+        // Rebuild the grid around the existing selection, then select the new item.
+        $this->rebuildItems($this->currentSelectionMap());
+        $this->setChecked($item->id, true);
+
+        $this->reset(['newItemName', 'newItemType', 'newItemInclusion', 'newItemPriceIdr', 'newItemPriceUsd', 'newItemQuota', 'newItemRequiresMaterial']);
+        $this->showItemModal = false;
+        $this->success(__('Item added to the catalog.'));
+    }
+
+    public function createPackage(): void
+    {
+        abort_unless(auth()->user()->isJ4u(), 403);
+
+        $validated = $this->validate([
+            'newPackageName' => ['required', 'string', 'max:255'],
+            'newPackagePriceIdr' => ['nullable', 'numeric', 'min:0'],
+            'newPackagePriceUsd' => ['nullable', 'numeric', 'min:0'],
+            'newPackageQuota' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        // The new tier starts with whatever is currently selected as its contents.
+        $selectedItems = [];
+
+        foreach ($this->items as $row) {
+            if ($row['checked']) {
+                $selectedItems[(int) $row['item_id']] = max(1, (int) $row['quantity']);
+            }
+        }
+
+        $package = app(CreatePackageAction::class)->execute(new PackageData(
+            name: $validated['newPackageName'],
+            defaultPriceIdr: $validated['newPackagePriceIdr'] !== '' ? $validated['newPackagePriceIdr'] : null,
+            defaultPriceUsd: $validated['newPackagePriceUsd'] !== '' ? $validated['newPackagePriceUsd'] : null,
+            quota: $validated['newPackageQuota'] !== '' ? (int) $validated['newPackageQuota'] : null,
+            items: $selectedItems,
+        ));
+
+        $this->packageId = $package->id;
+        $this->updatedPackageId();
+
+        $this->reset(['newPackageName', 'newPackagePriceIdr', 'newPackagePriceUsd', 'newPackageQuota']);
+        $this->showPackageModal = false;
+        $this->success(__('Package added to the catalog.'));
+    }
+
+    // ---------------------------------------------------------------- Items
+
     protected function checkedItemCount(): int
     {
         return collect($this->items)->filter(fn (array $row): bool => $row['checked'])->count();
@@ -176,9 +451,14 @@ class DealForm extends Component
             }
 
             $taken = $quota->itemTakenCount((int) $row['item_id'], $this->deal?->id);
+            $units = max(1, (int) $row['quantity']);
 
-            if ($quota->isFull($row['quota'], $taken)) {
-                return __('Item ":name" is at full quota.', ['name' => $row['name']]);
+            if ($taken + $units > $row['quota']) {
+                return __('Item ":name" needs :units unit(s) but only :remaining remain.', [
+                    'name' => $row['name'],
+                    'units' => $units,
+                    'remaining' => max(0, $row['quota'] - $taken),
+                ]);
             }
         }
 
@@ -199,6 +479,8 @@ class DealForm extends Component
             if ($row['is_addon'] && isset($current[$row['item_id']])) {
                 $row['checked'] = $current[$row['item_id']]['checked'];
                 $row['custom_price'] = $current[$row['item_id']]['custom_price'];
+                $row['quantity'] = $current[$row['item_id']]['quantity'];
+                $row['inclusion'] = $current[$row['item_id']]['inclusion'];
             }
 
             return $row;
@@ -206,7 +488,8 @@ class DealForm extends Component
 
         if ($this->packageId) {
             $package = Package::find($this->packageId);
-            $this->finalPrice = (string) ($package->default_price ?? $this->finalPrice);
+            $price = $package?->getAttribute($this->currencyEnum()->priceColumn());
+            $this->finalPrice = $price !== null ? Money::plain($price) : $this->finalPrice;
         }
     }
 
@@ -221,6 +504,25 @@ class DealForm extends Component
         $this->paymentTerms = array_values($this->paymentTerms);
     }
 
+    /**
+     * Assign the still-unallocated balance to the given term, so the terms sum
+     * to the final price and the deal can be finalized (BR-08).
+     */
+    public function balanceTerm(int $index): void
+    {
+        if (! isset($this->paymentTerms[$index])) {
+            return;
+        }
+
+        $others = collect($this->paymentTerms)
+            ->except([$index])
+            ->sum(fn (array $term): float => (float) ($term['amount'] ?: 0));
+
+        $remaining = round((float) ($this->finalPrice ?: 0) - $others, 2);
+
+        $this->paymentTerms[$index]['amount'] = (string) max(0, $remaining);
+    }
+
     public function save(): void
     {
         $validated = $this->validate();
@@ -230,6 +532,8 @@ class DealForm extends Component
             ->values()
             ->map(fn (array $row): array => [
                 'item_id' => (int) $row['item_id'],
+                'quantity' => max(1, (int) $row['quantity']),
+                'inclusion' => trim($row['inclusion']) !== '' ? $row['inclusion'] : null,
                 'is_addon' => (bool) $row['is_addon'],
                 'custom_price' => $row['custom_price'] !== '' ? (string) $row['custom_price'] : null,
             ])
@@ -247,15 +551,26 @@ class DealForm extends Component
             return;
         }
 
+        $terms = collect($this->paymentTerms)->map(fn (array $term): array => [
+            'id' => $term['id'] !== null ? (int) $term['id'] : null,
+            'description' => $term['description'],
+            'due_date' => $term['due_date'],
+            'amount' => $term['amount'],
+            'notes' => $term['notes'] !== '' ? $term['notes'] : null,
+        ])->values()->all();
+
         $data = new DealData(
             doctorId: (int) $validated['doctorId'],
             companyName: $validated['companyName'],
+            brandName: $validated['brandName'],
             picName: $validated['picName'],
             picContact: $validated['picContact'],
             packageId: $validated['packageId'],
+            currency: $this->currencyEnum()->value,
+            subtotal: (string) $this->subtotal(),
             finalPrice: $validated['finalPrice'],
             items: $items,
-            paymentTerms: array_values($this->paymentTerms),
+            paymentTerms: $terms,
         );
 
         $deal = $this->deal
@@ -294,52 +609,168 @@ class DealForm extends Component
             ])
             ->all();
 
+        // Grouping is a render-order concern only: $items itself is never
+        // filtered or re-sorted, because wire:model binds to its indexes.
+        // Search narrows the "available" list only — a chosen item must stay visible.
+        $search = trim($this->itemSearch);
+        $selectedItemKeys = [];
+        $availableItemKeys = [];
+
+        foreach ($this->items as $index => $row) {
+            if ($row['checked']) {
+                $selectedItemKeys[] = $index;
+
+                continue;
+            }
+
+            if ($search === '' || str_contains(mb_strtolower($row['name']), mb_strtolower($search))) {
+                $availableItemKeys[] = $index;
+            }
+        }
+
         return view('livewire.deal-form', [
             'packages' => $packages,
-            'doctors' => User::where('role', UserRole::Doctor->value)->orderBy('name')->get(),
             'itemsTaken' => $itemsTaken,
             'packagesTaken' => $packagesTaken,
+            'selectedItemKeys' => $selectedItemKeys,
+            'availableItemKeys' => $availableItemKeys,
+            'currencyEnum' => $this->currencyEnum(),
+            'subtotal' => $this->subtotal(),
+            'termsTotal' => $this->termsTotal(),
+            'termsDifference' => $this->termsDifference(),
         ]);
     }
 
     /**
-     * @param  array<int, array{is_addon: bool, custom_price: string}>|null  $dealItemMap
+     * Load the default (unfiltered) doctor options.
+     */
+    protected function refreshDoctorOptions(): void
+    {
+        $doctors = User::query()
+            ->where('role', UserRole::Doctor->value)
+            ->orderBy('name')
+            ->take(20)
+            ->get();
+
+        $this->doctorOptions = $this->withSelectedDoctor($this->toOptions($doctors));
+    }
+
+    /**
+     * @param  Collection<int, User>  $doctors
+     * @return array<int, array{id: int, name: string}>
+     */
+    protected function toOptions(Collection $doctors): array
+    {
+        return $doctors
+            ->map(fn (User $doctor): array => ['id' => $doctor->id, 'name' => $doctor->name])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Keep the selected doctor in the option list, so the combobox can label it
+     * even when the current search results no longer include it.
+     *
+     * @param  array<int, array{id: int, name: string}>  $options
+     * @return array<int, array{id: int, name: string}>
+     */
+    protected function withSelectedDoctor(array $options): array
+    {
+        if ($this->doctorId <= 0 || collect($options)->contains('id', $this->doctorId)) {
+            return $options;
+        }
+
+        $selected = User::find($this->doctorId);
+
+        return $selected !== null
+            ? array_merge([['id' => $selected->id, 'name' => $selected->name]], $options)
+            : $options;
+    }
+
+    /**
+     * @return array<int, array{is_addon: bool, custom_price: string}>
+     */
+    protected function currentSelectionMap(): array
+    {
+        return collect($this->items)
+            ->filter(fn (array $row): bool => $row['checked'])
+            ->mapWithKeys(fn (array $row): array => [
+                $row['item_id'] => [
+                    'is_addon' => $row['is_addon'],
+                    'quantity' => $row['quantity'],
+                    'inclusion' => $row['inclusion'],
+                    'custom_price' => $row['custom_price'],
+                ],
+            ])
+            ->all();
+    }
+
+    protected function setChecked(int $itemId, bool $checked): void
+    {
+        $this->items = collect($this->items)->map(function (array $row) use ($itemId, $checked): array {
+            if ((int) $row['item_id'] === $itemId) {
+                $row['checked'] = $checked;
+            }
+
+            return $row;
+        })->all();
+    }
+
+    /**
+     * @param  array<int, array{is_addon: bool, custom_price: string, quantity?: int, inclusion?: string}>|null  $dealItemMap
      */
     protected function rebuildItems(?array $dealItemMap = null): void
     {
-        $packageItemIds = $this->packageId
-            ? Package::findOrFail($this->packageId)->items()->pluck('items.id')->all()
+        // item id => units the chosen tier bundles (e.g. Diamond includes 5 booths).
+        $packageQuantities = $this->packageId
+            ? Package::findOrFail($this->packageId)->items
+                ->mapWithKeys(fn (Item $item): array => [
+                    $item->id => max(1, (int) $item->getAttribute('pivot')->quantity),
+                ])->all()
             : [];
 
+        $priceColumn = $this->currencyEnum()->priceColumn();
+
         $this->items = Item::orderBy('name')->get()
-            ->map(function (Item $item) use ($packageItemIds, $dealItemMap): array {
+            ->map(function (Item $item) use ($packageQuantities, $dealItemMap, $priceColumn): array {
                 $inDeal = $dealItemMap !== null && isset($dealItemMap[$item->id]);
+                $inPackage = array_key_exists($item->id, $packageQuantities);
 
                 $isAddon = $inDeal
                     ? $dealItemMap[$item->id]['is_addon']
-                    : ! in_array($item->id, $packageItemIds, true);
+                    : ! $inPackage;
+
+                $catalogPrice = $item->getAttribute($priceColumn);
 
                 return [
                     'item_id' => $item->id,
                     'name' => $item->name,
                     'type' => $item->type,
                     'quota' => $item->quota,
+                    // Package items inherit the tier's bundled count; add-ons start at 1.
+                    'quantity' => $inDeal
+                        ? max(1, (int) ($dealItemMap[$item->id]['quantity'] ?? 1))
+                        : ($inPackage ? $packageQuantities[$item->id] : 1),
+                    // Blank means "inherit the catalog text"; catalog_inclusion is
+                    // kept alongside purely so the form can show what that is.
+                    'inclusion' => $inDeal ? ($dealItemMap[$item->id]['inclusion'] ?? '') : '',
+                    'catalog_inclusion' => $item->inclusion ?? '',
                     'is_addon' => $isAddon,
                     'checked' => $inDeal || ! $isAddon,
                     'custom_price' => $inDeal
                         ? $dealItemMap[$item->id]['custom_price']
-                        : ($isAddon && $item->default_price !== null ? (string) $item->default_price : ''),
+                        : ($isAddon ? Money::plain($catalogPrice) : ''),
                 ];
             })
             ->all();
     }
 
     /**
-     * @return array{description: string, due_date: string, amount: string}
+     * @return array{id: int|null, description: string, due_date: string, amount: string, notes: string}
      */
     protected function emptyTerm(): array
     {
-        return ['description' => '', 'due_date' => '', 'amount' => ''];
+        return ['id' => null, 'description' => '', 'due_date' => '', 'amount' => '', 'notes' => ''];
     }
 
     /**
@@ -352,9 +783,9 @@ class DealForm extends Component
         $rules = $this->rules();
 
         return match ($step) {
-            1 => Arr::only($rules, ['doctorId', 'companyName', 'picName', 'picContact']),
-            2 => Arr::only($rules, ['packageId', 'finalPrice', 'items.*.checked', 'items.*.custom_price']),
-            3 => Arr::only($rules, ['paymentTerms.*.description', 'paymentTerms.*.due_date', 'paymentTerms.*.amount']),
+            1 => Arr::only($rules, ['doctorId', 'companyName', 'brandName', 'picName', 'picContact']),
+            2 => Arr::only($rules, ['packageId', 'currency', 'finalPrice', 'items.*.checked', 'items.*.custom_price', 'items.*.quantity', 'items.*.inclusion']),
+            3 => Arr::only($rules, ['paymentTerms.*.description', 'paymentTerms.*.due_date', 'paymentTerms.*.amount', 'paymentTerms.*.notes']),
             default => [],
         };
     }
@@ -367,17 +798,22 @@ class DealForm extends Component
         return [
             'doctorId' => ['required', 'integer', Rule::exists('users', 'id')->where('role', UserRole::Doctor->value)],
             'companyName' => ['required', 'string', 'max:255'],
+            'brandName' => ['required', 'string', 'max:255'],
             'picName' => ['required', 'string', 'max:255'],
             'picContact' => ['required', 'string', 'max:255'],
             'packageId' => ['nullable', 'integer', Rule::exists('packages', 'id')],
+            'currency' => ['required', Rule::enum(Currency::class)],
             'finalPrice' => ['required', 'numeric', 'min:0'],
             'items.*.checked' => ['boolean'],
             'items.*.custom_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.inclusion' => ['nullable', 'string', 'max:2000'],
             'assets' => ['array'],
             'assets.*' => ['file', 'max:51200'],
             'paymentTerms.*.description' => ['required', 'string', 'max:255'],
             'paymentTerms.*.due_date' => ['required', 'date'],
             'paymentTerms.*.amount' => ['required', 'numeric', 'min:0'],
+            'paymentTerms.*.notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

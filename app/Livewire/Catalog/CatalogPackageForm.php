@@ -7,6 +7,7 @@ use App\Actions\Catalog\UpdatePackageAction;
 use App\DTOs\Catalog\PackageData;
 use App\Models\Item;
 use App\Models\Package;
+use App\Support\Money;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Exists;
 use Illuminate\View\View;
@@ -18,12 +19,23 @@ class CatalogPackageForm extends Component
 
     public string $name = '';
 
-    public string $defaultPrice = '';
+    public string $defaultPriceIdr = '';
+
+    public string $defaultPriceUsd = '';
 
     public ?int $quota = null;
 
     /** @var list<int> */
     public array $selectedItems = [];
+
+    /**
+     * Units of each item this tier includes, keyed by item id. Only the entries
+     * for selected items are meaningful; the rest are kept so toggling an item
+     * off and on again does not lose the number.
+     *
+     * @var array<int, int>
+     */
+    public array $itemQuantities = [];
 
     public function mount(?Package $package = null): void
     {
@@ -35,9 +47,14 @@ class CatalogPackageForm extends Component
             $package->load('items');
 
             $this->name = $package->name;
-            $this->defaultPrice = $package->default_price;
+            $this->defaultPriceIdr = Money::plain($package->default_price_idr);
+            $this->defaultPriceUsd = Money::plain($package->default_price_usd);
             $this->quota = $package->quota;
             $this->selectedItems = array_values($package->items->pluck('id')->all());
+            $this->itemQuantities = $package->items
+                ->mapWithKeys(fn (Item $item): array => [
+                    $item->id => max(1, (int) $item->getAttribute('pivot')->quantity),
+                ])->all();
         }
     }
 
@@ -47,9 +64,10 @@ class CatalogPackageForm extends Component
 
         $data = new PackageData(
             name: $validated['name'],
-            defaultPrice: $validated['defaultPrice'],
+            defaultPriceIdr: $validated['defaultPriceIdr'] !== '' ? (string) $validated['defaultPriceIdr'] : null,
+            defaultPriceUsd: $validated['defaultPriceUsd'] !== '' && $validated['defaultPriceUsd'] !== null ? (string) $validated['defaultPriceUsd'] : null,
             quota: $validated['quota'] !== null && $validated['quota'] !== '' ? (int) $validated['quota'] : null,
-            itemIds: array_values(collect($this->selectedItems)->map(fn (mixed $id): int => (int) $id)->all()),
+            items: $this->selectedItemQuantities(),
         );
 
         $this->package
@@ -59,6 +77,23 @@ class CatalogPackageForm extends Component
         session()->flash('status', $this->package ? 'Package updated.' : 'Package created.');
 
         $this->redirect(route('catalog.packages.index'), navigate: true);
+    }
+
+    /**
+     * Selected item ids mapped to their unit count (default 1).
+     *
+     * @return array<int, int>
+     */
+    protected function selectedItemQuantities(): array
+    {
+        $items = [];
+
+        foreach ($this->selectedItems as $id) {
+            $itemId = (int) $id;
+            $items[$itemId] = max(1, (int) ($this->itemQuantities[$itemId] ?? 1));
+        }
+
+        return $items;
     }
 
     public function render(): View
@@ -75,10 +110,13 @@ class CatalogPackageForm extends Component
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'defaultPrice' => ['required', 'numeric', 'min:0'],
+            'defaultPriceIdr' => ['required', 'numeric', 'min:0'],
+            'defaultPriceUsd' => ['nullable', 'numeric', 'min:0'],
             'quota' => ['nullable', 'integer', 'min:0'],
             'selectedItems' => ['array'],
             'selectedItems.*' => ['integer', Rule::exists('items', 'id')],
+            'itemQuantities' => ['array'],
+            'itemQuantities.*' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }

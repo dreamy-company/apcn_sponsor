@@ -30,7 +30,7 @@
                     <x-tier-badge :package="$topPackage" size="lg" />
                 </div>
                 <p class="mt-1 text-sm text-white/70">
-                    {{ $deals->count() }} {{ __('deal(s)') }} · Rp {{ number_format((float) $totalValue, 0, ',', '.') }}
+                    {{ $deals->count() }} {{ __('deal(s)') }} · <x-money :amount="$totalValue" />
                 </p>
             </div>
 
@@ -46,7 +46,7 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="font-semibold whitespace-nowrap">Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</span>
+                                <span class="font-semibold whitespace-nowrap"><x-money :amount="$deal->final_price" :currency="$deal->currency" /></span>
                                 <span class="badge badge-soft {{ $deal->status === \App\Enums\DealStatus::Finalized ? 'badge-success' : 'badge-ghost' }}">
                                     {{ $deal->status->label() }}
                                 </span>

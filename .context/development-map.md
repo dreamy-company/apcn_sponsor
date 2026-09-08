@@ -2,9 +2,9 @@
 
 ## J4U Sponsorship Deal Management System (APCN 2027)
 
-- **Version:** 1.0
-- **Source:** SRS v2.0 (`.context/srs.md`)
-- **Last updated:** 2026-08-12
+- **Version:** 1.1
+- **Source:** SRS v2.1 (`.context/srs.md`)
+- **Last updated:** 2026-09-08
 
 ---
 
@@ -93,12 +93,47 @@ Make the app usable for a demo / first sign-in.
 
 ---
 
+### WS-F — Deal Revision: brand, subtotal, USD, guarantee letter, quotas ✅ done
+
+Client revision of 2026-09-08. Adds BR-07…BR-12 and supersedes BR-03. See SRS §5.
+
+| # | Task | Status | Notes |
+|---|---|---|---|
+| F1 | Schema: `sponsors.brand_name`, `deals.currency`/`subtotal`, dual catalog prices, term `notes`+verification, `guarantee_letters` | ✅ | 5 additive migrations; `default_price` renamed to `default_price_idr` (values preserved) |
+| F2 | `<x-money>` component + `Currency` enum formatting | ✅ | Replaced hardcoded `Rp `+`number_format` in all 14 blades |
+| F3 | Initiation: brand name + typeable doctor with inline create | ✅ | Sponsor identity is now (company, brand); reuses `CreateDoctorAction`; contact required |
+| F4 | Package & Items: subtotal, currency switch, item search, inline item/package create | ✅ | Subtotal = package + checked add-ons (BR-07) |
+| F5 | Payment terms: notes, running balance, finalize guard, per-term verification | ✅ | `UnbalancedPaymentTermsException` (BR-08); `wire:key` added to repeater rows |
+| F6 | `UpdateDealAction` reconciles terms in place | ✅ | **Correctness fix** — editing previously deleted and recreated every term, destroying paid status and proofs |
+| F7 | Guarantee letter (3-step flow + verification) | ✅ | Own table, own actions; counts toward payment progress, excluded from BR-08 |
+| F8 | Quota visibility (`5/30` + remaining) and buyer detail | ✅ | Catalog indexes, dashboard Inventory panel, Brand column on buyer tables |
+| F9 | Catalog reconciliation against the 2027 prospectus | ✅ | Every IDR price already matched; USD derived at ×18,100; 3 quota corrections. Open contradictions logged in SRS §11 |
+| F10 | Currency-safe aggregates | ✅ | IDR and USD are reported separately and never summed together (BR-10) |
+| F11 | `package_item.quantity` + `deal_items.quantity` | ✅ | Tier quantities from the inclusion matrix (Diamond ×5 booths, ×15 pax, every tier ×2 T-Banner); add-on units selectable per deal |
+| F12 | Item quota counted in **units** | ✅ | `QuotaService::itemTakenCount()` sums `deal_items.quantity`; wizard + `FinalizeDealAction` check requested units against what remains (BR-11 revised) |
+
+### WS-G — Revisi UI & guarantee letter (round 2) ✅ done
+
+Umpan balik pemakaian, 2026-09-08. Merevisi BR-09, menambah catatan presentasi pada BR-06.
+
+| # | Task | Status | Notes |
+|---|---|---|---|
+| G1 | Guarantee letter pindah ke payment term | ✅ | `guarantee_letters.payment_term_id` unik; `amount`/`currency` dihapus (ikut nominal termin); migrasi mem-backfill ke termin paling awal. Urutan drop FK → index → kolom supaya jalan di MySQL *dan* SQLite |
+| G2 | Trait `HasTransferProof` | ✅ | Menghapus duplikasi helper proof antara `PaymentTerm` dan `GuaranteeLetter` |
+| G3 | Kartu GL berdiri sendiri dihapus | ✅ | Kolom tabel jadi **Settlement**; alur 3 langkah tampil sebagai baris ekspansi di bawah terminnya |
+| G4 | Progres pembayaran tidak dobel-hitung | ✅ | `totalPaid`/`totalTerms` murni dari payment terms |
+| G5 | Activity Log bahasa Indonesia | ✅ | `App\Support\ActivityDescriber` + `ActivityLog::describe()`; slug di DB tidak diubah, `ActivityLogTest` tetap hijau tanpa disentuh |
+| G6 | Field Inclusion | ✅ | `items.inclusion` (katalog) + `deal_items.inclusion` (override per deal); fallback di `DealItem::effectiveInclusion()` |
+| G7 | Mask angka uang | ✅ | `<x-money-input>` + komponen Alpine di `resources/js/app.js`; `Money::plain()` membuang `,00` di sumbernya. Prop `money` milik Mary tidak dipakai — butuh bundel JS Mary yang tidak di-import proyek ini |
+| G8 | Item terpilih dikelompokkan | ✅ | `selectedItemKeys` / `availableItemKeys`; search hanya menyaring grup "Other Items"; urutan `$items` tidak diubah karena `wire:model` terikat indeks |
+
 ### WS-E — Stretch / Backlog (not committed)
 
 | # | Idea | Notes |
 |---|---|---|
 | E1 | Reopen finalized deals (edit) | Requires policy decision (BR-05) + re-versioned audit entries |
 | E2 | Material file uploads / due-date reminders | New tables + storage driver |
+| E6 | Resolve prospectus contradictions with the client | Conflicting prices/quotas listed in SRS §11.4 |
 | E3 | Email notifications on payment/material deadlines | Queue + mail driver |
 | E4 | Export deals to PDF/Excel (final summary for sponsors) | `barryvdh/laravel-dompdf` or CSV |
 
@@ -114,6 +149,10 @@ WS-A  ✅ done — catalog CRUD (items, packages) → AC-1 closed
 WS-B  ✅ done — dashboard stats (FR-26 closed)
   ↓
 User mgmt  ✅ done — `/users` module (FR-27…FR-30, `UserManagementTest`)
+  ↓
+WS-F  ✅ done — deal revision (brand, subtotal, USD, guarantee letter, quotas)
+  ↓
+WS-G  ✅ done — UI revision round 2 (GL in terms, plain-language log, inclusion, money mask)
   ↓
 WS-D  ⬜ next — production hardening
   ↓
@@ -134,8 +173,17 @@ WS-C first because a populated catalog makes WS-A and WS-B verifiable by hand. W
 | Activity ledger | `ActivityLogTest` | ✅ 4 tests |
 | Catalog CRUD (WS-A) | `CatalogTest` | ✅ 10 tests |
 | Dashboard stats (WS-B) | `DashboardStatsTest` | ✅ 4 tests |
+| Guarantee letter flow (WS-F) | `GuaranteeLetterTest` | ✅ 6 tests |
+| Currency, subtotal, item search, inline create (WS-F) | `DealCurrencyAndSubtotalTest` | ✅ 7 tests |
+| Term balance, verification, edit-preserves-proof (WS-F) | `PaymentTermBalanceTest` | ✅ 8 tests |
+| Dashboard inventory panel (WS-F) | `DashboardInventoryTest` | ✅ 1 test |
+| Item/package quantities & unit-based quota (WS-F) | `ItemQuantityTest` | ✅ 8 tests |
+| Guarantee letter per payment term (WS-G) | `GuaranteeLetterTest` | ✅ 10 tests |
+| Activity log wording (WS-G) | `ActivityLogPresentationTest` | ✅ 7 tests |
+| Inclusion katalog + override (WS-G) | `ItemInclusionTest` | ✅ 6 tests |
+| Pengelompokan item & format uang (WS-G) | `DealFormGroupingTest`, `WizardRenderSmokeTest` | ✅ 8 tests |
 
-**Baseline:** 65 tests / 171 assertions green; PHPStan level 7 clean; Pint clean.
+**Baseline:** 180 tests / 470 assertions green; PHPStan level 7 clean; Pint clean.
 
 ---
 

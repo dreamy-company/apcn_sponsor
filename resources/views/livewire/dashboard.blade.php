@@ -27,13 +27,19 @@
             </div>
         </div>
 
-        {{-- Indicator cards --}}
+{{-- Indicator cards --}}
         @php
+            $idr = fn ($v) => \App\Enums\Currency::IDR->format($v);
+            // USD deals are reported alongside, never added to the IDR figure.
+            $usdSub = fn ($v, string $fallback) => (float) $v > 0
+                ? \App\Enums\Currency::USD->format($v).' '.__('in USD deals')
+                : $fallback;
+
             $cards = [
-                ['icon' => 'o-banknotes', 'tone' => 'primary', 'value' => 'Rp '.number_format((float) $summary['totalCommitted'], 0, ',', '.'), 'label' => __('Total Committed'), 'sub' => $summary['finalizedCount'].' '.__('finalized deals')],
+                ['icon' => 'o-banknotes', 'tone' => 'primary', 'value' => $idr($summary['totalCommitted']), 'label' => __('Total Committed'), 'sub' => $usdSub($summary['usd']['totalCommitted'], $summary['finalizedCount'].' '.__('finalized deals'))],
                 ['icon' => 'o-briefcase', 'tone' => 'info', 'value' => $summary['dealsCount'], 'label' => __('Active Deals'), 'sub' => $summary['draftCount'].' '.__('drafts').' · '.$summary['finalizedCount'].' '.__('finalized')],
-                ['icon' => 'o-check-circle', 'tone' => 'success', 'value' => 'Rp '.number_format((float) $summary['paidAmount'], 0, ',', '.'), 'label' => __('Payments Received'), 'sub' => __('received from sponsors')],
-                ['icon' => 'o-clock', 'tone' => 'error', 'value' => 'Rp '.number_format((float) $summary['outstandingAmount'], 0, ',', '.'), 'label' => __('Outstanding'), 'sub' => __('awaiting payment')],
+                ['icon' => 'o-check-circle', 'tone' => 'success', 'value' => $idr($summary['paidAmount']), 'label' => __('Payments Received'), 'sub' => $usdSub($summary['usd']['paidAmount'], __('received from sponsors'))],
+                ['icon' => 'o-clock', 'tone' => 'error', 'value' => $idr($summary['outstandingAmount']), 'label' => __('Outstanding'), 'sub' => $usdSub($summary['usd']['outstandingAmount'], __('awaiting payment'))],
                 ['icon' => 'o-cube', 'tone' => 'primary', 'value' => $summary['materialReceived'].' / '.$summary['materialTotal'], 'label' => __('Materials'), 'sub' => __('received of all required')],
                 ['icon' => 'o-document-text', 'tone' => 'warning', 'value' => $summary['draftCount'], 'label' => __('Drafts'), 'sub' => __('awaiting finalization')],
             ];
@@ -117,6 +123,34 @@
             </div>
         @endif
 
+        {{-- Inventory: what is closest to selling out --}}
+        @if ($inventory !== [])
+            <div class="card bg-base-100 p-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-sm font-extrabold">{{ __('Inventory') }}</h2>
+                    <span class="text-xs text-base-content/40">{{ __('Sold / total, from finalized deals') }}</span>
+                </div>
+
+                <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    @foreach ($inventory as $row)
+                        @php $soldOut = $row['remaining'] === 0; @endphp
+                        <a href="{{ $row['url'] }}" wire:navigate
+                           class="rounded-box border border-base-300 p-3 transition hover:border-primary/40">
+                            <div class="truncate text-sm font-semibold" title="{{ $row['name'] }}">{{ $row['name'] }}</div>
+                            <div class="mt-1 flex items-center justify-between gap-2">
+                                <span class="text-lg font-extrabold">{{ $row['taken'] }}/{{ $row['quota'] }}</span>
+                                <span class="badge badge-soft badge-xs {{ $soldOut ? 'badge-error' : 'badge-ghost' }}">
+                                    {{ $soldOut ? __('Sold out') : __(':n left', ['n' => $row['remaining']]) }}
+                                </span>
+                            </div>
+                            <progress class="progress mt-2 {{ $soldOut ? 'progress-error' : 'progress-primary' }}"
+                                      value="{{ $row['taken'] }}" max="{{ $row['quota'] }}"></progress>
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Recent deals --}}
         <div class="card overflow-hidden bg-base-100">
             <div class="flex flex-col gap-3 border-b border-base-300 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -154,10 +188,10 @@
                                 <td>{{ $deal->sponsor->company_name }}</td>
                                 <td>{{ $deal->doctor->name }}</td>
                                 <td><x-tier-badge :package="$deal->package" /></td>
-                                <td>Rp {{ number_format((float) $deal->final_price, 0, ',', '.') }}</td>
+                                <td><x-money :amount="$deal->final_price" :currency="$deal->currency" /></td>
                                 <td>
                                     @if ((float) $deal->paid_total > 0)
-                                        Rp {{ number_format((float) $deal->paid_total, 0, ',', '.') }}
+                                        <x-money :amount="$deal->paid_total" :currency="$deal->currency" />
                                     @else
                                         <span class="text-base-content/40">—</span>
                                     @endif

@@ -16,7 +16,9 @@
             <form wire:submit="save" class="space-y-4">
                 <div class="grid gap-4 sm:grid-cols-3">
                     <x-input :label="__('Name')" wire:model="name" :placeholder="__('Diamond')" />
-                    <x-input :label="__('Default Price (IDR)')" wire:model="defaultPrice" type="number" min="0" step="0.01" placeholder="0" prefix="Rp" />
+                    <x-money-input :label="__('Default Price (IDR)')" wire:model="defaultPriceIdr" currency="IDR" />
+                    <x-money-input :label="__('Default Price (USD)')" wire:model="defaultPriceUsd" currency="USD"
+                                   :hint="__('Used when the deal is transacted in USD.')" />
                     <x-input :label="__('Quota')" :hint="__('Blank = unlimited')" wire:model="quota" type="number" min="0" :placeholder="__('Unlimited')" />
                 </div>
 
@@ -24,12 +26,28 @@
 
                 <div>
                     <label class="fieldset-label mb-2 block text-sm font-semibold">{{ __('Items in Package') }}</label>
+                    <p class="mb-2 text-xs text-base-content/50">
+                        {{ __('Set how many units the tier includes — e.g. 5 booths, 15 complimentary registrations.') }}
+                    </p>
 
                     <div class="space-y-2">
                         @forelse ($items as $item)
-                            <label class="flex cursor-pointer items-center gap-3 rounded-box border border-base-300 p-3">
-                                <x-checkbox wire:model="selectedItems" value="{{ $item->id }}" />
-                                <span class="text-sm">{{ $item->name }}</span>
+                            @php $isSelected = in_array((string) $item->id, array_map('strval', $selectedItems), true); @endphp
+                            <label wire:key="pkg-item-{{ $item->id }}"
+                                   class="flex cursor-pointer items-center gap-3 rounded-box border border-base-300 p-3">
+                                <x-checkbox wire:model.live="selectedItems" value="{{ $item->id }}" />
+                                <span class="grow text-sm">{{ $item->name }}</span>
+                                @if ($isSelected)
+                                    <span class="flex items-center gap-2">
+                                        <span class="text-xs text-base-content/50">{{ __('Qty') }}</span>
+                                        <x-input
+                                            wire:model="itemQuantities.{{ $item->id }}"
+                                            type="number" min="1" step="1" placeholder="1"
+                                            class="w-20"
+                                            @click.stop
+                                        />
+                                    </span>
+                                @endif
                             </label>
                         @empty
                             <p class="text-base-content/50">{{ __('No items in the catalog yet.') }}</p>

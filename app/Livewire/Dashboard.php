@@ -56,6 +56,7 @@ class Dashboard extends Component
 
         return view('livewire.dashboard', [
             'summary' => $service->summary(),
+            'inventory' => $service->inventory(),
             'recentDeals' => $service->recentDeals(),
             'reportUrl' => $token !== null ? route('public.report', $token) : null,
         ]);

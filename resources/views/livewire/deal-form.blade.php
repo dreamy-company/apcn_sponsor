@@ -7,9 +7,10 @@
             4 => ['label' => __('Summary'), 'desc' => __('Review & save')],
         ];
         $checkedItems = collect($items)->where('checked', true);
-        $selectedDoctor = $doctors->firstWhere('id', $doctorId);
+        $selectedDoctor = collect($doctorOptions)->firstWhere('id', $doctorId);
         $selectedPackage = $packages->firstWhere('id', $packageId);
-        $termsTotal = collect($paymentTerms)->sum(fn ($t) => (float) ($t['amount'] ?: 0));
+        $finalPriceValue = (float) ($finalPrice ?: 0);
+        $balanced = abs($termsDifference) < 0.005;
     @endphp
 
     <div class="space-y-6">
@@ -74,15 +75,27 @@
                         <p class="mt-1 text-sm text-base-content/60">{{ __('Who initiated the deal and which sponsor is it with.') }}</p>
 
                         <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                            <x-select
-                                :label="__('Doctor (Initiator)')"
-                                wire:model="doctorId"
-                                :options="$doctors"
-                                option-value="id"
-                                option-label="name"
-                                :placeholder="__('Select doctor...')"
-                            />
-                            <x-input :label="__('Company Name')" wire:model="companyName" placeholder="PT Contoh Sejahtera" />
+                            <div>
+                                <x-choices
+                                    :label="__('Doctor (Initiator)')"
+                                    wire:model="doctorId"
+                                    :options="$doctorOptions"
+                                    search-function="searchDoctors"
+                                    searchable
+                                    single
+                                    :placeholder="__('Type a doctor name...')"
+                                    :no-result-text="__('No doctor found — add one below.')"
+                                />
+                                <button type="button"
+                                        wire:click="$set('showDoctorModal', true)"
+                                        class="mt-1 text-xs font-semibold text-primary hover:underline">
+                                    + {{ __('Add a new doctor') }}
+                                </button>
+                            </div>
+                            <x-input :label="__('Company Name (PT)')" wire:model="companyName" placeholder="PT Contoh Sejahtera"
+                                     :hint="__('The legal entity the deal is signed with.')" />
+                            <x-input :label="__('Brand Name')" wire:model="brandName" :placeholder="__('Contoh Brand')"
+                                     :hint="__('One brand per deal.')" />
                             <x-input :label="__('PIC Name')" wire:model="picName" :placeholder="__('Budi Santoso')" />
                             <x-input :label="__('PIC Contact')" wire:model="picContact" placeholder="+62 812 3456 7890" />
                         </div>
@@ -94,74 +107,118 @@
                         <p class="mt-1 text-sm text-base-content/60">{{ __('Pick a base tier, adjust items, and set the agreed price.') }}</p>
 
                         <div class="mt-4 space-y-4">
-                            <x-select
-                                :label="__('Base Package (Tier)')"
-                                wire:model.live="packageId"
-                                :options="$packages->map(function ($p) use ($packagesTaken) {
-                                    $label = $p->name.' — Rp '.number_format((float) $p->default_price, 0, ',', '.');
-                                    if ($p->quota !== null) {
-                                        $taken = $packagesTaken[$p->id] ?? 0;
-                                        $label .= ' · '.$taken.'/'.$p->quota.($taken >= $p->quota ? ' '.__('FULL') : '');
-                                    }
-                                    return ['id' => $p->id, 'name' => $label];
-                                })"
-                                option-value="id"
-                                option-label="name"
-                                :placeholder="'— '.__('No base package').' —'"
-                            />
+                            <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
+                                <div>
+                                    <x-select
+                                        :label="__('Base Package (Tier)')"
+                                        wire:model.live="packageId"
+                                        :options="$packages->map(function ($p) use ($packagesTaken, $currencyEnum) {
+                                            $price = $p->getAttribute($currencyEnum->priceColumn());
+                                            $label = $p->name.' — '.($price !== null ? $currencyEnum->format($price) : __('n/a'));
+                                            if ($p->quota !== null) {
+                                                $taken = $packagesTaken[$p->id] ?? 0;
+                                                $label .= ' · '.$taken.'/'.$p->quota.($taken >= $p->quota ? ' '.__('FULL') : '');
+                                            }
+                                            return ['id' => $p->id, 'name' => $label];
+                                        })"
+                                        option-value="id"
+                                        option-label="name"
+                                        :placeholder="'— '.__('No base package').' —'"
+                                    />
+                                    <button type="button"
+                                            wire:click="$set('showPackageModal', true)"
+                                            class="mt-1 text-xs font-semibold text-primary hover:underline">
+                                        + {{ __('New package') }}
+                                    </button>
+                                </div>
+                                <x-select
+                                    :label="__('Currency')"
+                                    wire:model.live="currency"
+                                    :options="collect(App\Enums\Currency::cases())->map(fn ($c) => ['id' => $c->value, 'name' => $c->label()])"
+                                    option-value="id"
+                                    option-label="name"
+                                />
+                            </div>
 
+                            {{-- Chosen items sit right under the tier, so the scope of the
+                                 deal is readable without scanning the whole catalog. --}}
                             <div>
-                                <label class="fieldset-label mb-2 block text-sm font-semibold">{{ __('Items') }}</label>
-                                <div class="grid gap-2 sm:grid-cols-2">
-                                    @forelse ($items as $index => $item)
-                                        @php
-                                            $itemQuota = $item['quota'] ?? null;
-                                            $taken = $itemsTaken[$item['item_id']] ?? 0;
-                                            $full = $itemQuota !== null && $taken >= $itemQuota;
-                                            $blocked = $full && ! $item['checked'];
-                                        @endphp
-                                        <label @class([
-                                            'flex items-start justify-between gap-3 rounded-box border p-3 transition',
-                                            'cursor-pointer' => ! $blocked,
-                                            'cursor-not-allowed opacity-60' => $blocked,
-                                            'border-primary bg-primary-soft' => $item['checked'],
-                                            'border-base-300 hover:border-primary/40' => ! $item['checked'] && ! $blocked,
-                                            'border-base-300' => $blocked,
-                                        ])>
-                                            <div class="flex items-start gap-3">
-                                                <x-checkbox wire:model.live="items.{{ $index }}.checked" @disabled($blocked) />
-                                                <div>
-                                                    <div class="text-sm font-semibold">{{ $item['name'] }}</div>
-                                                    <div class="flex flex-wrap items-center gap-1.5 text-xs text-base-content/50">
-                                                        <span>{{ $item['is_addon'] ? __('Add-on') : __('Package item') }}</span>
-                                                        @if ($itemQuota !== null)
-                                                            <span class="badge badge-soft badge-xs {{ $full ? 'badge-error' : 'badge-ghost' }}">
-                                                                {{ $taken }}/{{ $itemQuota }} {{ $full ? __('Full') : __('taken') }}
-                                                            </span>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            @if ($item['is_addon'])
-                                                <x-input
-                                                    wire:model="items.{{ $index }}.custom_price"
-                                                    class="w-28"
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    :placeholder="__('Price')"
-                                                    @click.stop
-                                                />
-                                            @endif
-                                        </label>
+                                <label class="fieldset-label mb-2 block text-sm font-semibold">
+                                    {{ __('Selected Items') }}
+                                    <span class="font-normal text-base-content/50">({{ count($selectedItemKeys) }})</span>
+                                </label>
+
+                                <div class="grid gap-2">
+                                    @forelse ($selectedItemKeys as $index)
+                                        @include('livewire.partials.deal-item-row', ['index' => $index, 'selected' => true])
                                     @empty
-                                        <p class="text-base-content/50">{{ __('No items in the catalog yet.') }}</p>
+                                        <p class="rounded-box border border-dashed border-base-300 p-4 text-center text-sm text-base-content/50">
+                                            {{ __('No items selected yet. Pick a package above, or choose from the list below.') }}
+                                        </p>
                                     @endforelse
                                 </div>
                                 @error('items') <div class="mt-1 text-error">{{ $message }}</div> @enderror
                             </div>
 
-                            <x-input :label="__('Final Price (IDR)')" wire:model="finalPrice" type="number" min="0" step="0.01" placeholder="0" prefix="Rp" />
+                            <div>
+                                <div class="mb-2 flex flex-wrap items-end justify-between gap-2">
+                                    <label class="fieldset-label text-sm font-semibold">{{ __('Other Items') }}</label>
+                                    <div class="flex items-end gap-2">
+                                        <x-input
+                                            wire:model.live.debounce.300ms="itemSearch"
+                                            icon="o-magnifying-glass"
+                                            class="w-56"
+                                            :placeholder="__('Search items...')"
+                                        />
+                                        <x-button :label="__('New item')" icon="o-plus" type="button"
+                                                  wire:click="$set('showItemModal', true)" class="btn-ghost btn-sm" />
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-2 sm:grid-cols-2">
+                                    @forelse ($availableItemKeys as $index)
+                                        @include('livewire.partials.deal-item-row', ['index' => $index, 'selected' => false])
+                                    @empty
+                                        <p class="text-base-content/50">
+                                            {{ $itemSearch !== '' ? __('No items match your search.') : __('Every catalog item is already selected.') }}
+                                        </p>
+                                    @endforelse
+                                </div>
+                            </div>
+                            </div>
+
+                            {{-- Subtotal (computed) vs Final Price (negotiated) --}}
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="rounded-box bg-base-200 p-4">
+                                    <div class="eyebrow text-base-content/50">{{ __('Subtotal') }}</div>
+                                    <div class="mt-1 text-xl font-extrabold">
+                                        <x-money :amount="$subtotal" :currency="$currencyEnum" />
+                                    </div>
+                                    <p class="mt-1 text-xs text-base-content/50">
+                                        {{ __('Package tier + selected add-ons, at catalog prices.') }}
+                                    </p>
+                                    <button type="button" wire:click="useSubtotalAsFinalPrice"
+                                            class="mt-2 text-xs font-semibold text-primary hover:underline">
+                                        {{ __('Use as final price') }}
+                                    </button>
+                                </div>
+
+                                <div>
+                                    <x-money-input
+                                        :label="__('Final Price').' ('.$currencyEnum->value.')'"
+                                        wire:model="finalPrice"
+                                        :currency="$currencyEnum"
+                                        :hint="__('The price actually agreed with the doctor.')"
+                                    />
+                                    @php $delta = $finalPriceValue - $subtotal; @endphp
+                                    @if ($finalPrice !== '' && abs($delta) >= 0.005)
+                                        <p class="mt-1 text-xs {{ $delta < 0 ? 'text-warning' : 'text-success' }}">
+                                            {{ $delta < 0 ? __('Discount of') : __('Above subtotal by') }}
+                                            <x-money :amount="abs($delta)" :currency="$currencyEnum" class="font-semibold" />
+                                        </p>
+                                    @endif
+                                </div>
+                            </div>
 
                             <div>
                                 <x-file
@@ -185,13 +242,65 @@
                             <x-button :label="__('Add Term')" icon="o-plus" type="button" wire:click="addPaymentTerm" class="btn-ghost btn-sm" />
                         </div>
 
+                        {{-- Running balance against the final price (BR-08) --}}
+                        <div @class([
+                            'mt-4 grid gap-4 rounded-box border p-4 sm:grid-cols-3',
+                            'border-success/40 bg-success/10' => $balanced,
+                            'border-warning/40 bg-warning/10' => ! $balanced,
+                        ])>
+                            <div>
+                                <div class="eyebrow text-base-content/50">{{ __('Final Price') }}</div>
+                                <div class="mt-1 text-lg font-extrabold">
+                                    <x-money :amount="$finalPriceValue" :currency="$currencyEnum" />
+                                </div>
+                            </div>
+                            <div>
+                                <div class="eyebrow text-base-content/50">{{ __('Terms Total') }}</div>
+                                <div class="mt-1 text-lg font-extrabold">
+                                    <x-money :amount="$termsTotal" :currency="$currencyEnum" />
+                                </div>
+                            </div>
+                            <div>
+                                <div class="eyebrow text-base-content/50">
+                                    {{ $termsDifference > 0 ? __('Over by') : __('Remaining') }}
+                                </div>
+                                <div class="mt-1 text-lg font-extrabold {{ $balanced ? 'text-success' : 'text-warning' }}">
+                                    <x-money :amount="abs($termsDifference)" :currency="$currencyEnum" />
+                                </div>
+                                @unless ($balanced)
+                                    <p class="mt-0.5 text-xs text-warning">
+                                        {{ __('Terms must match the final price before this deal can be finalized.') }}
+                                    </p>
+                                @endunless
+                            </div>
+                        </div>
+
                         <div class="mt-4 space-y-3">
                             @foreach ($paymentTerms as $index => $term)
-                                <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-end">
-                                    <x-input :label="__('Description')" wire:model="paymentTerms.{{ $index }}.description" :placeholder="__('Termin 1 (DP 50%)')" />
-                                    <x-input :label="__('Due Date')" wire:model="paymentTerms.{{ $index }}.due_date" type="date" />
-                                    <x-input :label="__('Amount (IDR)')" wire:model="paymentTerms.{{ $index }}.amount" type="number" min="0" step="0.01" placeholder="0" />
-                                    <x-button icon="o-trash" type="button" wire:click="removePaymentTerm({{ $index }})" class="btn-ghost btn-circle text-error" :aria-label="__('Remove term')" />
+                                <div wire:key="term-{{ $index }}" class="rounded-box border border-base-300 p-3">
+                                    <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-end">
+                                        <x-input :label="__('Description')" wire:model="paymentTerms.{{ $index }}.description" :placeholder="__('Termin 1 (DP 50%)')" />
+                                        <x-input :label="__('Due Date')" wire:model="paymentTerms.{{ $index }}.due_date" type="date" />
+                                        <x-input
+                                            :label="__('Amount').' ('.$currencyEnum->value.')'"
+                                            wire:model.live.debounce.400ms="paymentTerms.{{ $index }}.amount"
+                                            type="number" min="0" step="0.01" placeholder="0"
+                                        />
+                                        <x-button icon="o-trash" type="button" wire:click="removePaymentTerm({{ $index }})" class="btn-ghost btn-circle text-error" :aria-label="__('Remove term')" />
+                                    </div>
+                                    <div class="mt-3 flex items-end gap-2">
+                                        <x-textarea
+                                            :label="__('Notes')"
+                                            wire:model="paymentTerms.{{ $index }}.notes"
+                                            rows="2"
+                                            class="grow"
+                                            :placeholder="__('Optional context for this milestone.')"
+                                        />
+                                        @unless ($balanced)
+                                            <x-button :label="__('Fill remaining')" type="button"
+                                                      wire:click="balanceTerm({{ $index }})" class="btn-ghost btn-sm" />
+                                        @endunless
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -207,17 +316,22 @@
                         <p class="mt-1 text-sm text-base-content/60">{{ __('Review before saving. Click a step on the left to edit.') }}</p>
 
                         <div class="mt-4 space-y-4">
-                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                <div><span class="eyebrow text-base-content/50">{{ __('Doctor') }}</span><div class="mt-1 text-sm font-semibold">{{ $selectedDoctor?->name ?? '—' }}</div></div>
+                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                                <div><span class="eyebrow text-base-content/50">{{ __('Doctor') }}</span><div class="mt-1 text-sm font-semibold">{{ $selectedDoctor['name'] ?? '—' }}</div></div>
                                 <div><span class="eyebrow text-base-content/50">{{ __('Company') }}</span><div class="mt-1 text-sm font-semibold">{{ $companyName ?: '—' }}</div></div>
+                                <div><span class="eyebrow text-base-content/50">{{ __('Brand') }}</span><div class="mt-1 text-sm font-semibold">{{ $brandName ?: '—' }}</div></div>
                                 <div><span class="eyebrow text-base-content/50">{{ __('PIC') }}</span><div class="mt-1 text-sm font-semibold">{{ $picName ?: '—' }}</div><div class="text-xs text-base-content/50">{{ $picContact }}</div></div>
                                 <div><span class="eyebrow text-base-content/50">{{ __('Package') }}</span><div class="mt-1 text-sm font-semibold">{{ $selectedPackage?->name ?? __('Custom') }}</div></div>
                             </div>
 
-                            <div class="grid gap-4 sm:grid-cols-3">
+                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                <div class="rounded-box bg-base-200 p-4">
+                                    <div class="eyebrow text-base-content/50">{{ __('Subtotal') }}</div>
+                                    <div class="mt-1 text-xl font-extrabold"><x-money :amount="$subtotal" :currency="$currencyEnum" /></div>
+                                </div>
                                 <div class="rounded-box bg-base-200 p-4">
                                     <div class="eyebrow text-base-content/50">{{ __('Final Price') }}</div>
-                                    <div class="mt-1 text-xl font-extrabold">Rp {{ number_format((float) ($finalPrice ?: 0), 0, ',', '.') }}</div>
+                                    <div class="mt-1 text-xl font-extrabold"><x-money :amount="$finalPriceValue" :currency="$currencyEnum" /></div>
                                 </div>
                                 <div class="rounded-box bg-base-200 p-4">
                                     <div class="eyebrow text-base-content/50">{{ __('Items selected') }}</div>
@@ -225,10 +339,10 @@
                                 </div>
                                 <div class="rounded-box bg-base-200 p-4">
                                     <div class="eyebrow text-base-content/50">{{ __('Payment terms total') }}</div>
-                                    <div class="mt-1 text-xl font-extrabold">Rp {{ number_format($termsTotal, 0, ',', '.') }}</div>
-                                    @if ($termsTotal != (float) ($finalPrice ?: 0))
-                                        <div class="mt-0.5 text-xs text-warning">{{ __('differs from final price') }}</div>
-                                    @endif
+                                    <div class="mt-1 text-xl font-extrabold"><x-money :amount="$termsTotal" :currency="$currencyEnum" /></div>
+                                    @unless ($balanced)
+                                        <div class="mt-0.5 text-xs text-warning">{{ __('does not match final price') }}</div>
+                                    @endunless
                                 </div>
                             </div>
 
@@ -237,7 +351,7 @@
                                 <div class="mt-1 flex flex-wrap gap-1.5">
                                     @forelse ($checkedItems as $item)
                                         <span class="badge badge-soft {{ $item['is_addon'] ? 'badge-info' : 'badge-ghost' }}">
-                                            {{ $item['name'] }}{{ $item['is_addon'] && $item['custom_price'] !== '' ? ' · Rp '.number_format((float) $item['custom_price'], 0, ',', '.') : '' }}
+                                            {{ $item['name'] }}@if ((int) $item['quantity'] > 1) ×{{ $item['quantity'] }}@endif@if ($item['is_addon'] && $item['custom_price'] !== '') · {{ $currencyEnum->format((float) $item['custom_price'] * max(1, (int) $item['quantity'])) }}@endif
                                         </span>
                                     @empty
                                         <span class="text-sm text-base-content/50">{{ __('No items selected.') }}</span>
@@ -252,9 +366,14 @@
                                         <tbody>
                                             @forelse ($paymentTerms as $term)
                                                 <tr>
-                                                    <td class="font-semibold">{{ $term['description'] ?: '—' }}</td>
+                                                    <td class="font-semibold">
+                                                        {{ $term['description'] ?: '—' }}
+                                                        @if (($term['notes'] ?? '') !== '')
+                                                            <div class="text-xs font-normal text-base-content/50">{{ $term['notes'] }}</div>
+                                                        @endif
+                                                    </td>
                                                     <td>{{ $term['due_date'] ?: '—' }}</td>
-                                                    <td>Rp {{ number_format((float) ($term['amount'] ?: 0), 0, ',', '.') }}</td>
+                                                    <td><x-money :amount="(float) ($term['amount'] ?: 0)" :currency="$currencyEnum" /></td>
                                                 </tr>
                                             @empty
                                                 <tr><td class="text-base-content/50">{{ __('No payment terms.') }}</td></tr>
@@ -284,4 +403,52 @@
             </x-card>
         </div>
     </div>
+
+    {{-- Inline creation modals (outside the wizard form — nested forms are invalid) --}}
+    <x-modal wire:model="showDoctorModal" :title="__('New Doctor')" separator>
+        <p class="mb-4 text-sm text-base-content/60">
+            {{ __('Doctors do not log in. A contact is required so they can be reached about this deal.') }}
+        </p>
+        <div class="grid gap-4">
+            <x-input :label="__('Name')" wire:model="newDoctorName" :placeholder="__('Dr. Budi Santoso')" />
+            <x-input :label="__('Contact')" wire:model="newDoctorPhone" placeholder="+62 812 3456 7890" />
+        </div>
+        <x-slot:actions>
+            <x-button :label="__('Cancel')" wire:click="$set('showDoctorModal', false)" class="btn-ghost" />
+            <x-button :label="__('Add Doctor')" wire:click="createDoctor" class="btn-primary" spinner="createDoctor" />
+        </x-slot:actions>
+    </x-modal>
+
+    <x-modal wire:model="showItemModal" :title="__('New Item')" separator>
+        <div class="grid gap-4 sm:grid-cols-2">
+            <x-input :label="__('Name')" wire:model="newItemName" class="sm:col-span-2" />
+            <x-input :label="__('Type (optional)')" wire:model="newItemType" :placeholder="__('Branding, Symposium, ...')" />
+            <x-input :label="__('Quota')" wire:model="newItemQuota" type="number" min="0" :hint="__('Leave blank for unlimited.')" />
+            <x-money-input :label="__('Price (IDR)')" wire:model="newItemPriceIdr" currency="IDR" />
+            <x-money-input :label="__('Price (USD)')" wire:model="newItemPriceUsd" currency="USD" />
+            <x-textarea :label="__('Inclusion')" wire:model="newItemInclusion" rows="2" class="sm:col-span-2"
+                        :placeholder="__('What the sponsor gets for this item.')" />
+            <x-toggle :label="__('Requires material from the sponsor')" wire:model="newItemRequiresMaterial" class="sm:col-span-2" />
+        </div>
+        <x-slot:actions>
+            <x-button :label="__('Cancel')" wire:click="$set('showItemModal', false)" class="btn-ghost" />
+            <x-button :label="__('Add Item')" wire:click="createItem" class="btn-primary" spinner="createItem" />
+        </x-slot:actions>
+    </x-modal>
+
+    <x-modal wire:model="showPackageModal" :title="__('New Package')" separator>
+        <p class="mb-4 text-sm text-base-content/60">
+            {{ __('The items currently selected become this package\'s contents.') }}
+        </p>
+        <div class="grid gap-4 sm:grid-cols-2">
+            <x-input :label="__('Name')" wire:model="newPackageName" class="sm:col-span-2" />
+            <x-money-input :label="__('Price (IDR)')" wire:model="newPackagePriceIdr" currency="IDR" />
+            <x-money-input :label="__('Price (USD)')" wire:model="newPackagePriceUsd" currency="USD" />
+            <x-input :label="__('Quota')" wire:model="newPackageQuota" type="number" min="0" :hint="__('Leave blank for unlimited.')" class="sm:col-span-2" />
+        </div>
+        <x-slot:actions>
+            <x-button :label="__('Cancel')" wire:click="$set('showPackageModal', false)" class="btn-ghost" />
+            <x-button :label="__('Add Package')" wire:click="createPackage" class="btn-primary" spinner="createPackage" />
+        </x-slot:actions>
+    </x-modal>
 </section>
