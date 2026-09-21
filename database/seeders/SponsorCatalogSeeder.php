@@ -7,12 +7,13 @@ use App\Models\Package;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds the sponsorship catalog from the APCN & AM InaSN 2027 Sponsorship
- * Prospectus (Draft Prospectus Catalogue, light edition).
+ * Seeds the sponsorship catalog from the APCN 2027 Costing & Sponsorship
+ * Prospectus dated 15 Sept (tabs: "SPONSORSHIP PACKAGE (TIER)",
+ * "ADD-ON ITEMS", "TIER INCLUSION DETAILS").
  *
- * Prices are the IDR figures printed in the prospectus (USD x 18,100).
+ * Prices are the IDR figures printed in the sheet (USD x 18,100).
  * Item `default_price` is the add-on / rate-card price of a single unit;
- * `quota` is the number of units or sponsor slots available.
+ * `quota` is the TOTAL number of units or sponsor slots available.
  */
 class SponsorCatalogSeeder extends Seeder
 {
@@ -36,8 +37,25 @@ class SponsorCatalogSeeder extends Seeder
     }
 
     /**
-     * Catalog items — the "Tier Inclusion & Value Matrix" plus the
-     * "Add-On Opportunities" tables of the prospectus.
+     * Catalog items — the "TIER INCLUSION DETAILS" matrix plus the
+     * "ADD-ON ITEMS" tables of the 15 Sept costing sheet.
+     *
+     * Two reconciliation rules, because the sheet is ambiguous in places:
+     *
+     * 1. `quota` is TOTAL capacity. A smaller "QTY AVAIL." figure is the count
+     *    remaining after tier allocation, and the sheet's own note confirms the
+     *    total in every case:
+     *      - T-Banner             30 available / 40 total ("14 of 40 points used")
+     *      - Coffee Break          5 available /  6 total ("1 of approx. 6 total sessions")
+     *      - Welcome Reception     1 available /  3 total ("1 of 3 co-sponsor slots")
+     *      - Charging Station      6 available /  7 total ("7 of 7 units used")
+     *
+     * 2. Prices follow the "ADD-ON ITEMS" table where it contradicts the matrix:
+     *      - Spotlight Session     $15,000 (matrix says $10,000)
+     *      - Welcome Reception     $15,000 (matrix says $10,000)
+     *      - Email Banner (blast)   $4,000 (matrix "Email Blast" agrees; the
+     *                              sheet's $6,000 "every event communication"
+     *                              row is a duplicate of this line item)
      *
      * @return list<array{name: string, type: string, quota: int|null, default_price: int, requires_material: bool}>
      */
@@ -45,17 +63,19 @@ class SponsorCatalogSeeder extends Seeder
     {
         return [
             // --- Exhibition & registration -----------------------------------
-            ['name' => 'Booth 3x3m', 'type' => 'booth', 'quota' => 122, 'default_price' => 108_600_000, 'requires_material' => true],
+            ['name' => 'Booth 3x3m', 'type' => 'booth', 'quota' => 115, 'default_price' => 108_600_000, 'requires_material' => true],
             ['name' => 'Complimentary Registration (per pax)', 'type' => 'registration', 'quota' => null, 'default_price' => 7_240_000, 'requires_material' => false],
 
             // --- Scientific program ------------------------------------------
-            ['name' => 'Industry Symposium — Mangupura Hall (1,500 pax)', 'type' => 'symposium', 'quota' => 6, 'default_price' => 995_500_000, 'requires_material' => true],
+            ['name' => 'Industry Symposium — Mangupura Hall (1,500 pax)', 'type' => 'symposium', 'quota' => 3, 'default_price' => 995_500_000, 'requires_material' => true],
             ['name' => 'Industry Symposium — Nusantara 1&2 / Jakarta AB (500 pax)', 'type' => 'symposium', 'quota' => 6, 'default_price' => 895_950_000, 'requires_material' => true],
             ['name' => 'Industry Symposium — Auditorium Hall 4 (500 pax)', 'type' => 'symposium', 'quota' => 3, 'default_price' => 895_950_000, 'requires_material' => true],
             ['name' => 'Satellite Symposium (20–30 min)', 'type' => 'symposium', 'quota' => 12, 'default_price' => 543_000_000, 'requires_material' => true],
             ['name' => 'Spotlight Session — Exhibition Gallery (20–30 min)', 'type' => 'symposium', 'quota' => null, 'default_price' => 271_500_000, 'requires_material' => true],
             ['name' => 'Interventional Workshop (Full Day, per room)', 'type' => 'symposium', 'quota' => 3, 'default_price' => 1_086_000_000, 'requires_material' => true],
             ['name' => 'Pre-Congress Sponsorship (per full day / room)', 'type' => 'symposium', 'quota' => 4, 'default_price' => 905_000_000, 'requires_material' => true],
+            // Domestic-sponsor rate: a fixed IDR price, explicitly not converted from USD.
+            ['name' => 'Industry Symposium — Local Sponsor (Special Rate, Non-Lunch)', 'type' => 'symposium', 'quota' => null, 'default_price' => 200_000_000, 'requires_material' => true],
 
             // --- Naming rights & hospitality ---------------------------------
             ['name' => 'Gala Dinner Naming Rights', 'type' => 'naming', 'quota' => 3, 'default_price' => 1_176_500_000, 'requires_material' => true],
@@ -85,7 +105,7 @@ class SponsorCatalogSeeder extends Seeder
 
             // --- Digital -------------------------------------------------------
             ['name' => 'Homepage Banner (Flagship)', 'type' => 'digital', 'quota' => 3, 'default_price' => 452_500_000, 'requires_material' => true],
-            ['name' => 'Registration Page + QR Self-Registration System', 'type' => 'digital', 'quota' => 3, 'default_price' => 362_000_000, 'requires_material' => true],
+            ['name' => 'Registration Page + QR Self-Registration System + Registration Counter', 'type' => 'digital', 'quota' => 3, 'default_price' => 538_475_000, 'requires_material' => true],
             ['name' => 'Scientific Landing Page Website', 'type' => 'digital', 'quota' => null, 'default_price' => 181_000_000, 'requires_material' => true],
             ['name' => 'WiFi Special Display', 'type' => 'digital', 'quota' => 3, 'default_price' => 325_800_000, 'requires_material' => true],
             ['name' => 'Mobile App Banner (Full)', 'type' => 'digital', 'quota' => 4, 'default_price' => 271_500_000, 'requires_material' => true],
@@ -98,8 +118,9 @@ class SponsorCatalogSeeder extends Seeder
     }
 
     /**
-     * The seven tiers, priced per the "Seven Tiers of Partnership" table.
-     * `quota` is the Max Sponsors count; items follow the Tier Inclusion Matrix.
+     * The seven tiers, priced per the "SPONSORSHIP PACKAGE (TIER)" tab.
+     * `quota` is the Max Sponsors count; items follow the "TIER INCLUSION
+     * DETAILS" matrix.
      *
      * @return array<string, array{price: int, quota: int, items: list<string>}>
      */
@@ -119,7 +140,7 @@ class SponsorCatalogSeeder extends Seeder
                 'Delegate Bag Sponsorship',
                 'WiFi Special Display',
                 'Homepage Banner (Flagship)',
-                'Registration Page + QR Self-Registration System',
+                'Registration Page + QR Self-Registration System + Registration Counter',
                 'Photobooth Branding',
                 'Logo on Welcome Gate',
             ]],
